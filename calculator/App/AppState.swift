@@ -19,7 +19,7 @@ enum Tool: String, CaseIterable, Identifiable {
     case currency = "currency"
     case uppercase = "uppercase"
     case yoy = "yoy"
-    case incomeTax = "incomeTax"
+
     case date = "date"
     case unit = "unit"
     case loan = "loan"
@@ -32,7 +32,7 @@ enum Tool: String, CaseIterable, Identifiable {
         case .currency: String(localized: "汇率")
         case .uppercase: String(localized: "大写")
         case .yoy: String(localized: "同比环比")
-        case .incomeTax: String(localized: "个税")
+
         case .date: String(localized: "日期")
         case .unit: String(localized: "单位")
         case .loan: String(localized: "贷款")
@@ -45,7 +45,7 @@ enum Tool: String, CaseIterable, Identifiable {
         case .currency: "coloncurrencysign.arrow.trianglehead.counterclockwise.rotate.90"
         case .uppercase: "textformat.characters.dottedunderline.zh"
         case .yoy: "chart.line.uptrend.xyaxis"
-        case .incomeTax: "yensign"
+
         case .date: "calendar"
         case .unit: "ruler"
         case .loan: "house"

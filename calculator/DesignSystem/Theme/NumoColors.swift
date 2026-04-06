@@ -45,10 +45,13 @@ enum NumoColors {
                                         dark: .init(red: 0.92, green: 0.92, blue: 0.96).opacity(0.6))
 
     // MARK: - Semantic
-    static let success = Color(light: .init(red: 0.20, green: 0.78, blue: 0.35),
-                                dark: .init(red: 0.19, green: 0.82, blue: 0.35))
-    static let danger = Color(light: .init(red: 1.0, green: 0.23, blue: 0.19),
-                               dark: .init(red: 1.0, green: 0.27, blue: 0.23))
+    // 刻意回避正红/正绿的"股票盘面感"：
+    // success → 深邃的青苔翠绿（Teal-Emerald），带冷色调，沉稳克制；
+    // danger  → 暗玫瑰红（Muted Cardinal），降低饱和度，权威而不刺眼。
+    static let success = Color(light: .init(red: 0.07, green: 0.64, blue: 0.46),
+                                dark: .init(red: 0.13, green: 0.78, blue: 0.55))
+    static let danger = Color(light: .init(red: 0.83, green: 0.24, blue: 0.24),
+                               dark: .init(red: 0.89, green: 0.33, blue: 0.33))
     static let warning = Color(light: .init(red: 1.0, green: 0.58, blue: 0.0),
                                 dark: .init(red: 1.0, green: 0.84, blue: 0.04))
 }

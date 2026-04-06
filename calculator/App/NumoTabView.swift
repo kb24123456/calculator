@@ -18,7 +18,7 @@ struct NumoTabView: View {
     @State private var currencyVM = CurrencyExchangeViewModel()
     @State private var uppercaseVM = ChineseUppercaseViewModel()
     @State private var yoyVM = YoYCalculatorViewModel()
-    @State private var incomeTaxVM = IncomeTaxViewModel()
+
     @State private var dateVM = DateCalculatorViewModel()
     @State private var unitVM = UnitConverterViewModel()
     @State private var loanVM = LoanCalculatorViewModel()
@@ -28,7 +28,7 @@ struct NumoTabView: View {
     @State private var showHistory = false
     @State private var showSettings = false
     @State private var isKeypadCollapsed = false
-    @State private var isResultHighlighted = false
+    @State private var copyScale: CGFloat = 1.0
     @State private var isToastVisible = false
     @State private var isUnitPickerExpanded = false
 
@@ -43,16 +43,10 @@ struct NumoTabView: View {
                 toolDisplay
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(.horizontal, NumoSpacing.md)
+                    .scaleEffect(copyScale)
                     .onLongPressGesture(minimumDuration: 0.4) {
                         copyCurrentResult()
                     }
-                    .overlay(
-                        Color.blue
-                            .opacity(isResultHighlighted ? 0.13 : 0)
-                            .blur(radius: 18)
-                            .allowsHitTesting(false)
-                            .animation(.easeOut(duration: 0.12), value: isResultHighlighted)
-                    )
 
                 // MARK: - Fixed Keypad
                 if !isKeypadCollapsed {
@@ -181,6 +175,7 @@ struct NumoTabView: View {
             .scaleEffect(isToastVisible ? 1 : 0.75)
             .opacity(isToastVisible ? 1 : 0)
         }
+        .frame(maxWidth: .infinity)
     }
 
     @ViewBuilder
@@ -191,6 +186,7 @@ struct NumoTabView: View {
                 Text(currencyVM.rateInfo.isEmpty ? "—" : currencyVM.rateInfo)
                     .font(.system(size: 12, weight: .medium).monospacedDigit())
                     .foregroundStyle(NumoColors.textSecondary)
+                    .contentTransition(.numericText())
                 if let lastUpdated = currencyVM.lastUpdated {
                     Text(lastUpdated.relativeDescription)
                         .font(.system(size: 10).monospacedDigit())
@@ -224,10 +220,11 @@ struct NumoTabView: View {
                     value: isUnitPickerExpanded
                 )
 
-                // ── 展开态：五个分类等分铺满 principal 宽度 ──
-                // allCases 顺序：面积(0) 重量(1) 长度(2，中心) 数据(3) 温度(4)
-                // frame(maxWidth: .infinity) 使 HStack 撑满 principal，
-                // 每个 item 再 maxWidth .infinity 等分，形成与两侧按钮视觉等距的 7 元素布局
+                // ── 展开态：6 等分布局 ──
+                // HUD 区域宽度 = 屏幕宽 - 两侧按钮区域（各 44pt）
+                // 5 个选项把 HUD 区域视觉 6 等分：[gap] item [gap] item [gap] item [gap] item [gap] item [gap]
+                // 用 Spacer(minLength:0) 实现，6 个 Spacer 平分剩余空间，间距天然相等
+                let hudWidth = UIScreen.main.bounds.width - 88
                 HStack(spacing: 0) {
                     ForEach(Array(UnitCategory.allCases.enumerated()), id: \.element.id) { index, category in
                         let distance   = abs(index - 2)
@@ -236,6 +233,8 @@ struct NumoTabView: View {
                         let xMag: CGFloat = CGFloat(distance) * 8
                         let entryDelay = Double(distance) * 0.065
                         let exitDelay  = Double(2 - distance) * 0.055
+
+                        Spacer(minLength: 0)
 
                         Button {
                             if !isSelected { unitVM.selectCategory(category) }
@@ -246,7 +245,6 @@ struct NumoTabView: View {
                                               weight: isSelected ? .semibold : .regular,
                                               design: .rounded))
                                 .foregroundStyle(isSelected ? Color.primary : Color.secondary)
-                                .frame(maxWidth: .infinity)  // 等分宽度
                                 .padding(.vertical, 6)
                         }
                         .buttonStyle(.plain)
@@ -262,10 +260,79 @@ struct NumoTabView: View {
                             value: isUnitPickerExpanded
                         )
                     }
+                    Spacer(minLength: 0)
                 }
-                .frame(maxWidth: .infinity)
+                .frame(width: hudWidth)  // HUD 区域固定宽度，撑开 titleView
             }
             .transition(.opacity)
+
+        case .yoy:
+            Group {
+                if yoyVM.yoyResult != nil || yoyVM.momResult != nil {
+                    VStack(spacing: 1) {
+                        if let yoy = yoyVM.yoyResult {
+                            let word = yoy.trend == .up ? "增长" : yoy.trend == .down ? "下跌" : "持平"
+                            let arrow = yoy.trend == .up ? "↑" : yoy.trend == .down ? "↓" : "→"
+                            HStack(spacing: 3) {
+                                Text("同比").foregroundStyle(NumoColors.textSecondary)
+                                Text("\(word) \(ExpressionFormatter.formatPercent(yoy.percentageChange)) \(arrow)")
+                                    .foregroundStyle(yoy.trend.color)
+                                    .contentTransition(.numericText())
+                            }
+                        }
+                        if let mom = yoyVM.momResult {
+                            let word = mom.trend == .up ? "增长" : mom.trend == .down ? "下跌" : "持平"
+                            let arrow = mom.trend == .up ? "↑" : mom.trend == .down ? "↓" : "→"
+                            HStack(spacing: 3) {
+                                Text("环比").foregroundStyle(NumoColors.textSecondary)
+                                Text("\(word) \(ExpressionFormatter.formatPercent(mom.percentageChange)) \(arrow)")
+                                    .foregroundStyle(mom.trend.color)
+                                    .contentTransition(.numericText())
+                            }
+                        }
+                    }
+                    .transition(.push(from: .bottom).combined(with: .opacity))
+                } else {
+                    Text("数据对比分析")
+                        .foregroundStyle(NumoColors.textSecondary)
+                        .transition(.push(from: .top).combined(with: .opacity))
+                }
+            }
+            .font(.system(size: 11, weight: .medium, design: .rounded))
+            .multilineTextAlignment(.center)
+            .animation(.easeInOut(duration: 0.2), value: yoyVM.yoyResult?.percentageChange)
+            .animation(.easeInOut(duration: 0.2), value: yoyVM.momResult?.percentageChange)
+            .transition(.push(from: .bottom).combined(with: .opacity))
+
+        case .uppercase:
+            let digitCount = uppercaseVM.inputAmount.filter { $0.isNumber }.count
+            Text(uppercaseVM.inputAmount.isEmpty ? "输入金额" : "共 \(digitCount) 位数字")
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                .foregroundStyle(NumoColors.textSecondary)
+                .contentTransition(.numericText())
+                .animation(.easeInOut(duration: 0.18), value: uppercaseVM.inputAmount)
+                .transition(.push(from: .bottom).combined(with: .opacity))
+
+        case .loan:
+            Group {
+                if let result = loanVM.result {
+                    HStack(spacing: 3) {
+                        Text("总利息").foregroundStyle(NumoColors.textSecondary)
+                        Text(ExpressionFormatter.formatCurrency(result.totalInterest))
+                            .foregroundStyle(NumoColors.danger)
+                            .contentTransition(.numericText())
+                            .animation(.easeInOut(duration: 0.2), value: result.totalInterest)
+                    }
+                    .transition(.push(from: .bottom).combined(with: .opacity))
+                } else {
+                    Text("贷款成本分析")
+                        .foregroundStyle(NumoColors.textSecondary)
+                        .transition(.push(from: .top).combined(with: .opacity))
+                }
+            }
+            .font(.system(size: 12, weight: .medium, design: .rounded).monospacedDigit())
+            .animation(.easeInOut(duration: 0.2), value: loanVM.result != nil)
+            .transition(.push(from: .bottom).combined(with: .opacity))
 
         default:
             Color.clear
@@ -328,8 +395,7 @@ struct NumoTabView: View {
                 ChineseUppercaseView(viewModel: uppercaseVM)
             case .yoy:
                 YoYCalculatorView(viewModel: yoyVM, activeField: $activeField)
-            case .incomeTax:
-                IncomeTaxView(viewModel: incomeTaxVM, activeField: $activeField, onScrollCollapse: collapseKeypad)
+
             case .date:
                 DateCalculatorView(viewModel: dateVM)
             case .unit:
@@ -364,15 +430,7 @@ struct NumoTabView: View {
                 appendDigit(to: &yoyVM.momPreviousText, char: char)
             }
             yoyVM.calculate()
-        case .incomeTax:
-            switch activeField {
-            case .primary:
-                appendDigit(to: &incomeTaxVM.monthlySalaryText, char: char)
-            case .secondary:
-                appendDigit(to: &incomeTaxVM.specialDeductionsText, char: char)
-            default: break
-            }
-            incomeTaxVM.calculate()
+
         case .date:
             switch dateVM.mode {
             case .difference:
@@ -428,15 +486,7 @@ struct NumoTabView: View {
                 deleteLastDigit(from: &yoyVM.momPreviousText)
             }
             yoyVM.calculate()
-        case .incomeTax:
-            switch activeField {
-            case .primary:
-                deleteLastDigit(from: &incomeTaxVM.monthlySalaryText)
-            case .secondary:
-                deleteLastDigit(from: &incomeTaxVM.specialDeductionsText)
-            default: break
-            }
-            incomeTaxVM.calculate()
+
         case .date:
             switch dateVM.mode {
             case .difference:
@@ -483,15 +533,7 @@ struct NumoTabView: View {
                 yoyVM.momPreviousText = ""
             }
             yoyVM.calculate()
-        case .incomeTax:
-            switch activeField {
-            case .primary:
-                incomeTaxVM.monthlySalaryText = ""
-            case .secondary:
-                incomeTaxVM.specialDeductionsText = ""
-            default: break
-            }
-            incomeTaxVM.calculate()
+
         case .date:
             switch dateVM.mode {
             case .difference:
@@ -537,8 +579,7 @@ struct NumoTabView: View {
             uppercaseVM.convert()
         case .yoy:
             yoyVM.calculate()
-        case .incomeTax:
-            incomeTaxVM.calculate()
+
         case .date:
             switch dateVM.mode {
             case .difference:
@@ -581,9 +622,7 @@ struct NumoTabView: View {
         case .yoy:
             guard let r = yoyVM.yoyResult else { return nil }
             return ExpressionFormatter.formatSigned(r.percentageChange) + "%"
-        case .incomeTax:
-            guard let r = incomeTaxVM.result, let net = r.monthlyNetSalary.first else { return nil }
-            return ExpressionFormatter.formatCurrency(net)
+
         case .date:
             let fmt = DateFormatter()
             fmt.dateStyle = .medium
@@ -612,9 +651,12 @@ struct NumoTabView: View {
         UIPasteboard.general.string = text
         UINotificationFeedbackGenerator().notificationOccurred(.success)
 
-        // Brief highlight flash
-        withAnimation(.easeOut(duration: 0.08)) { isResultHighlighted = true }
-        withAnimation(.easeIn(duration: 0.25).delay(0.12)) { isResultHighlighted = false }
+        // 按下感：快速压缩到 96%
+        withAnimation(.spring(response: 0.18, dampingFraction: 0.85)) { copyScale = 0.96 }
+        // 回弹：欠阻尼弹簧，轻微过冲后归位
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.14) {
+            withAnimation(.spring(response: 0.48, dampingFraction: 0.52)) { copyScale = 1.0 }
+        }
 
         // Toast 显示/隐藏：用显式 withAnimation 驱动，不污染全局动画上下文
         withAnimation(.spring(response: 0.36, dampingFraction: 0.68)) {

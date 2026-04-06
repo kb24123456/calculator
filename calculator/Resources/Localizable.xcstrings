@@ -4,6 +4,9 @@
     "" : {
 
     },
+    "—" : {
+
+    },
     "%@  %@" : {
       "localizations" : {
         "zh-Hans" : {
@@ -34,8 +37,15 @@
         }
       }
     },
-    "%@%%" : {
-
+    "%@ %@ %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ %2$@ %3$@"
+          }
+        }
+      }
     },
     "%lld 周 %lld 天" : {
       "localizations" : {
@@ -46,9 +56,6 @@
           }
         }
       }
-    },
-    "%lld%%" : {
-
     },
     "= %@" : {
 
@@ -82,6 +89,7 @@
       }
     },
     "专项附加扣除（月）" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -92,6 +100,7 @@
       }
     },
     "个税" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -102,6 +111,7 @@
       }
     },
     "个税（首月）" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -132,6 +142,7 @@
       }
     },
     "五险一金" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -175,6 +186,7 @@
 
     },
     "公积金比例" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -183,6 +195,9 @@
           }
         }
       }
+    },
+    "共 %lld 位数字" : {
+
     },
     "关闭" : {
 
@@ -250,6 +265,9 @@
     "右侧" : {
 
     },
+    "同比" : {
+
+    },
     "同比 YoY" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -262,6 +280,7 @@
       }
     },
     "同比变化" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -281,9 +300,6 @@
           }
         }
       }
-    },
-    "同比比较值" : {
-
     },
     "同比环比" : {
       "localizations" : {
@@ -372,6 +388,7 @@
       }
     },
     "年度总税" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -433,6 +450,9 @@
           }
         }
       }
+    },
+    "数据对比分析" : {
+
     },
     "数据换算" : {
 
@@ -526,6 +546,7 @@
       }
     },
     "有效税率" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -560,6 +581,7 @@
       }
     },
     "本期值" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -568,6 +590,9 @@
           }
         }
       }
+    },
+    "本期数据" : {
+
     },
     "汇率" : {
       "localizations" : {
@@ -592,6 +617,9 @@
     "温度换算" : {
 
     },
+    "环比" : {
+
+    },
     "环比 MoM" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -604,6 +632,7 @@
       }
     },
     "环比变化" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -624,9 +653,6 @@
         }
       }
     },
-    "环比比较值" : {
-
-    },
     "相差 %lld 天" : {
       "localizations" : {
         "en" : {
@@ -638,6 +664,7 @@
       }
     },
     "税前月薪" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -648,6 +675,7 @@
       }
     },
     "税后月薪" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -784,6 +812,7 @@
       }
     },
     "输入税前月薪" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -794,7 +823,6 @@
       }
     },
     "输入金额" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -854,6 +882,12 @@
 
     },
     "长按拖动可调整顺序" : {
+
+    },
+    "长按数字可粘贴" : {
+
+    },
+    "零圆整" : {
 
     },
     "面积" : {

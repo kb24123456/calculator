@@ -20,8 +20,8 @@ enum Trend {
 
     var color: Color {
         switch self {
-        case .up: NumoColors.success
-        case .down: NumoColors.danger
+        case .up: NumoColors.danger    // 中国惯例：红涨
+        case .down: NumoColors.success // 中国惯例：绿跌
         case .flat: NumoColors.textSecondary
         }
     }

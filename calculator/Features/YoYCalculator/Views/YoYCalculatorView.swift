@@ -7,114 +7,193 @@
 
 import SwiftUI
 
-/// Display-only YoY/MoM view. Keypad input managed by NumoTabView.
+/// Display-only YoY/MoM dashboard view. Keypad input managed by NumoTabView.
 struct YoYCalculatorView: View {
     let viewModel: YoYCalculatorViewModel
     @Binding var activeField: ToolInputField
 
     var body: some View {
-        VStack(spacing: NumoSpacing.md) {
-            Spacer()
+        VStack(spacing: 12) {
+            Spacer(minLength: 0)
 
-            // Current value - full width
-            inputField(
-                label: String(localized: "本期值"),
-                value: viewModel.currentValueText,
-                isActive: activeField == .primary
-            ) {
-                activeField = .primary
-            }
+            // MARK: — Anchor Card（本期 · 全行锚点）
+            anchorCard
 
-            // YoY + MoM comparison values side by side
-            HStack(spacing: NumoSpacing.sm) {
-                inputField(
-                    label: String(localized: "同比比较值"),
-                    value: viewModel.yoyPreviousText,
-                    isActive: activeField == .secondary
-                ) {
-                    activeField = .secondary
-                }
-
-                inputField(
-                    label: String(localized: "环比比较值"),
-                    value: viewModel.momPreviousText,
-                    isActive: activeField == .tertiary
-                ) {
-                    activeField = .tertiary
-                }
-            }
-
-            // Dual results
-            if viewModel.yoyResult != nil || viewModel.momResult != nil {
-                HStack(spacing: NumoSpacing.sm) {
-                    if let yoy = viewModel.yoyResult {
-                        resultCard(title: String(localized: "同比变化"), result: yoy)
-                            .transition(.scale(scale: 0.9).combined(with: .opacity))
-                    }
-                    if let mom = viewModel.momResult {
-                        resultCard(title: String(localized: "环比变化"), result: mom)
-                            .transition(.scale(scale: 0.9).combined(with: .opacity))
-                    }
-                }
-                .animation(.spring(response: 0.35, dampingFraction: 0.75), value: viewModel.yoyResult?.percentageChange)
-                .animation(.spring(response: 0.35, dampingFraction: 0.75), value: viewModel.momResult?.percentageChange)
-            }
-
-            Spacer()
-        }
-    }
-
-    // MARK: - Result Card
-
-    private func resultCard(title: String, result: YoYResult) -> some View {
-        NumoCard {
-            VStack(spacing: NumoSpacing.xs) {
-                Text(title)
-                    .font(NumoTypography.caption)
-                    .foregroundStyle(NumoColors.textTertiary)
-
-                TrendIndicator(
-                    trend: result.trend,
-                    value: ExpressionFormatter.formatPercent(result.percentageChange)
+            // MARK: — Dual Cards（同比 + 环比）
+            HStack(spacing: 12) {
+                comparisonCard(
+                    label: "同比",
+                    subtitle: "去年同期",
+                    valueText: viewModel.yoyPreviousText,
+                    result: viewModel.yoyResult,
+                    field: .secondary
                 )
-
-                Text(ExpressionFormatter.formatSigned(result.absoluteChange))
-                    .font(NumoTypography.bodySmall)
-                    .foregroundStyle(NumoColors.textSecondary)
-                    .contentTransition(.numericText())
+                comparisonCard(
+                    label: "环比",
+                    subtitle: "上一期",
+                    valueText: viewModel.momPreviousText,
+                    result: viewModel.momResult,
+                    field: .tertiary
+                )
             }
-            .frame(maxWidth: .infinity)
+
+            Spacer(minLength: 0)
         }
     }
 
-    // MARK: - Tappable input field
+    // MARK: — Anchor Card
 
-    private func inputField(label: String, value: String, isActive: Bool, onTap: @escaping () -> Void) -> some View {
-        Button(action: onTap) {
+    private var anchorCard: some View {
+        let isActive = activeField == .primary
+        return Button { activeField = .primary } label: {
             VStack(alignment: .leading, spacing: NumoSpacing.xxs) {
-                Text(label)
-                    .font(NumoTypography.caption)
-                    .foregroundStyle(NumoColors.textTertiary)
-                Text(value.isEmpty ? "0" : value)
-                    .font(NumoTypography.monoTitleLarge)
-                    .foregroundStyle(isActive ? NumoColors.textPrimary : NumoColors.textSecondary)
-                    .contentTransition(.numericText())
-                    .animation(.easeInOut(duration: 0.15), value: value)
+                Text("本期数据")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Text(formattedNumber(viewModel.currentValueText))
+                    .font(.system(size: 56, weight: .bold, design: .rounded).monospacedDigit())
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.6)
+                    .minimumScaleFactor(0.4)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .contentTransition(.numericText())
+                    .animation(.easeInOut(duration: 0.15), value: viewModel.currentValueText)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, NumoSpacing.md)
             .padding(.vertical, NumoSpacing.sm)
             .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(NumoColors.surfaceSecondary)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(isActive ? NumoColors.accentRed.opacity(0.5) : .clear, lineWidth: 1.5)
+                    .shadow(
+                        color: isActive ? .black.opacity(0.07) : .clear,
+                        radius: 12, x: 0, y: 4
                     )
             )
         }
         .buttonStyle(.plain)
+        .animation(.easeInOut(duration: 0.2), value: isActive)
+    }
+
+    // MARK: — Comparison Card
+
+    private func comparisonCard(
+        label: String,
+        subtitle: String,
+        valueText: String,
+        result: YoYResult?,
+        field: ToolInputField
+    ) -> some View {
+        let isActive = activeField == field
+        return Button { activeField = field } label: {
+            VStack(alignment: .leading, spacing: 0) {
+
+                // ── 上半：输入区 ──
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(label)
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .foregroundStyle(isActive ? .primary : .secondary)
+                        Text(subtitle)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+
+                    Text(formattedNumber(valueText))
+                        .font(.system(size: 22, weight: .semibold, design: .rounded).monospacedDigit())
+                        .foregroundStyle(isActive ? .primary : .secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .contentTransition(.numericText())
+                        .animation(.easeInOut(duration: 0.15), value: valueText)
+                        .padding(.top, NumoSpacing.xxs)
+                }
+                .padding(.horizontal, NumoSpacing.sm)
+                .padding(.top, NumoSpacing.sm)
+                .padding(.bottom, NumoSpacing.xs)
+
+                Divider().opacity(0.45)
+
+                // ── 下半：结果区 ──
+                VStack(alignment: .leading, spacing: 2) {
+                    if let result {
+                        HStack(alignment: .firstTextBaseline, spacing: 3) {
+                            // draw-on：趋势变化时 .id 强制重建视图，触发 transition；
+                            // 以箭头"尾部"为 anchor 缩放至点再展开，模拟笔触描绘效果。
+                            let anchor: UnitPoint = result.trend == .up   ? .bottomLeading
+                                                  : result.trend == .down ? .topLeading
+                                                  : .leading
+                            Image(systemName: result.trend.icon)
+                                .font(.system(size: 15, weight: .bold))
+                                .id(result.trend)
+                                .transition(.asymmetric(
+                                    insertion: .scale(scale: 0.01, anchor: anchor)
+                                        .combined(with: .opacity),
+                                    removal: .scale(scale: 0.01, anchor: anchor)
+                                        .combined(with: .opacity)
+                                ))
+
+                            Text(ExpressionFormatter.formatPercent(result.percentageChange))
+                                .font(.system(size: 34, weight: .bold, design: .rounded).monospacedDigit())
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.5)
+                                .contentTransition(.numericText())
+                        }
+                        .foregroundStyle(result.trend.color)
+                        .animation(
+                            .spring(response: 0.38, dampingFraction: 0.72),
+                            value: result.percentageChange
+                        )
+                        .animation(
+                            .spring(response: 0.44, dampingFraction: 0.68),
+                            value: result.trend
+                        )
+
+                        Text(ExpressionFormatter.formatSigned(result.absoluteChange))
+                            .font(.system(size: 11, design: .rounded).monospacedDigit())
+                            .foregroundStyle(.tertiary)
+                            .contentTransition(.numericText())
+                            .animation(
+                                .spring(response: 0.38, dampingFraction: 0.72),
+                                value: result.absoluteChange
+                            )
+                    } else {
+                        Text("—")
+                            .font(.system(size: 34, weight: .thin, design: .rounded))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .padding(.horizontal, NumoSpacing.sm)
+                .padding(.vertical, NumoSpacing.sm)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .animation(.spring(response: 0.38, dampingFraction: 0.72), value: result == nil)
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(NumoColors.surfaceSecondary)
+                    .shadow(
+                        color: isActive ? .black.opacity(0.07) : .clear,
+                        radius: 12, x: 0, y: 4
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .animation(.easeInOut(duration: 0.2), value: isActive)
+    }
+
+    // MARK: — Thousands Separator
+
+    private func formattedNumber(_ text: String) -> String {
+        guard !text.isEmpty else { return "0" }
+        let parts = text.split(separator: ".", maxSplits: 1)
+        let intStr = String(parts[0])
+        let decStr = parts.count > 1 ? "." + String(parts[1]) : ""
+        var grouped = ""
+        for (i, char) in intStr.reversed().enumerated() {
+            if i > 0 && i % 3 == 0 { grouped = "," + grouped }
+            grouped = String(char) + grouped
+        }
+        return grouped + decStr
     }
 }
