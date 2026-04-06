@@ -7,39 +7,54 @@
 
 import SwiftUI
 
+/// Display-only Chinese uppercase view. Keypad input managed by NumoTabView.
 struct ChineseUppercaseView: View {
-    @Environment(AppState.self) private var appState
-    @State private var viewModel = ChineseUppercaseViewModel()
+    let viewModel: ChineseUppercaseViewModel
+    @State private var showCopied = false
 
     var body: some View {
         VStack(spacing: NumoSpacing.lg) {
             Spacer()
 
-            // Input
-            NumoTextField(title: String(localized: "输入金额"), text: $viewModel.inputAmount)
-                .onChange(of: viewModel.inputAmount) {
-                    viewModel.convert()
-                }
+            // Input amount display
+            Text(viewModel.inputAmount.isEmpty ? "0" : viewModel.inputAmount)
+                .font(NumoTypography.monoDisplayLarge)
+                .foregroundStyle(NumoColors.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .contentTransition(.numericText())
+                .animation(.easeInOut(duration: 0.2), value: viewModel.inputAmount)
 
-            // Result
-            if !viewModel.uppercaseResult.isEmpty {
-                NumoCard {
-                    VStack(alignment: .leading, spacing: NumoSpacing.xs) {
+            // Result - always visible
+            NumoCard {
+                VStack(alignment: .leading, spacing: NumoSpacing.xs) {
+                    HStack {
                         Text(String(localized: "人民币大写"))
                             .font(NumoTypography.bodySmall)
                             .foregroundStyle(NumoColors.textSecondary)
-
-                        Text(viewModel.uppercaseResult)
-                            .font(NumoTypography.titleMedium)
-                            .foregroundStyle(NumoColors.textPrimary)
-                            .textSelection(.enabled)
+                        Spacer()
+                        if showCopied {
+                            Text(String(localized: "已复制"))
+                                .font(NumoTypography.caption)
+                                .foregroundStyle(NumoColors.accentRed)
+                                .transition(.opacity)
+                        }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Text(viewModel.displayResult)
+                        .font(NumoTypography.titleMedium)
+                        .foregroundStyle(NumoColors.textPrimary)
+                        .contentTransition(.numericText())
+                        .animation(.easeInOut(duration: 0.25), value: viewModel.displayResult)
                 }
-                .onTapGesture {
-                    PasteboardService.copy(viewModel.uppercaseResult)
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .onTapGesture {
+                copyResult()
+            }
+            .onLongPressGesture {
+                copyResult()
             }
 
             if viewModel.isOutOfRange {
@@ -49,16 +64,16 @@ struct ChineseUppercaseView: View {
             }
 
             Spacer()
-            Spacer()
-        }
-        .padding(.horizontal, NumoSpacing.md)
-        .onAppear {
-            viewModel.updateFromLastResult(appState.lastResult)
         }
     }
-}
 
-#Preview {
-    ChineseUppercaseView()
-        .environment(AppState())
+    private func copyResult() {
+        guard !viewModel.displayResult.isEmpty else { return }
+        PasteboardService.copy(viewModel.displayResult)
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        withAnimation { showCopied = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            withAnimation { showCopied = false }
+        }
+    }
 }

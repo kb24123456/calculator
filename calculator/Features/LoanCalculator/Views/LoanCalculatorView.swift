@@ -7,22 +7,25 @@
 
 import SwiftUI
 
+/// Display-only loan calculator view. Keypad input managed by NumoTabView.
 struct LoanCalculatorView: View {
-    @State private var viewModel = LoanCalculatorViewModel()
+    let viewModel: LoanCalculatorViewModel
+    @Binding var activeField: ToolInputField
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: NumoSpacing.lg) {
-                // Amount
-                VStack(alignment: .leading, spacing: NumoSpacing.xs) {
-                    Text(String(localized: "贷款金额（万元）"))
-                        .font(NumoTypography.bodySmall)
-                        .foregroundStyle(NumoColors.textSecondary)
-                    NumoTextField(title: "100", text: $viewModel.amountText)
-                        .onChange(of: viewModel.amountText) { viewModel.calculate() }
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: NumoSpacing.md) {
+                // Amount input (tappable)
+                inputField(
+                    label: String(localized: "贷款金额（万元）"),
+                    value: viewModel.amountText,
+                    placeholder: "100",
+                    isActive: activeField == .primary
+                ) {
+                    activeField = .primary
                 }
 
-                // Term
+                // Term presets
                 VStack(alignment: .leading, spacing: NumoSpacing.xs) {
                     Text(String(localized: "贷款期限"))
                         .font(NumoTypography.bodySmall)
@@ -53,15 +56,18 @@ struct LoanCalculatorView: View {
                     }
                 }
 
-                // Rate
+                // Rate input (tappable) + presets
                 VStack(alignment: .leading, spacing: NumoSpacing.xs) {
-                    Text(String(localized: "年利率（%）"))
-                        .font(NumoTypography.bodySmall)
-                        .foregroundStyle(NumoColors.textSecondary)
+                    inputField(
+                        label: String(localized: "年利率（%）"),
+                        value: viewModel.annualRateText,
+                        placeholder: "3.45",
+                        isActive: activeField == .secondary
+                    ) {
+                        activeField = .secondary
+                    }
+
                     HStack(spacing: NumoSpacing.xs) {
-                        NumoTextField(title: "3.45", text: $viewModel.annualRateText)
-                            .frame(maxWidth: .infinity)
-                            .onChange(of: viewModel.annualRateText) { viewModel.calculate() }
                         ForEach(LoanCalculatorViewModel.ratePresets, id: \.rate) { preset in
                             Button {
                                 viewModel.annualRateText = preset.rate
@@ -71,7 +77,7 @@ struct LoanCalculatorView: View {
                                     .font(NumoTypography.caption)
                                     .foregroundStyle(NumoColors.chipDefaultText)
                                     .padding(.horizontal, NumoSpacing.xs)
-                                    .frame(height: 32)
+                                    .frame(height: 28)
                                     .background(Capsule().fill(NumoColors.chipDefault))
                             }
                             .buttonStyle(.plain)
@@ -79,15 +85,20 @@ struct LoanCalculatorView: View {
                     }
                 }
 
-                // Method
+                // Method selector
                 NumoSegmentedControl(
                     options: [
                         (String(localized: "等额本息"), RepaymentMethod.equalInstallment),
                         (String(localized: "等额本金"), RepaymentMethod.equalPrincipal),
                     ],
-                    selection: $viewModel.method
+                    selection: Binding(
+                        get: { viewModel.method },
+                        set: {
+                            viewModel.method = $0
+                            viewModel.calculate()
+                        }
+                    )
                 )
-                .onChange(of: viewModel.method) { viewModel.calculate() }
 
                 // Result
                 if let result = viewModel.result {
@@ -117,6 +128,7 @@ struct LoanCalculatorView: View {
                                     Text(ExpressionFormatter.formatCurrency(result.totalRepayment))
                                         .font(NumoTypography.bodyMedium)
                                         .foregroundStyle(NumoColors.textPrimary)
+                                        .contentTransition(.numericText())
                                 }
                                 Spacer()
                                 VStack(alignment: .trailing, spacing: 2) {
@@ -126,63 +138,44 @@ struct LoanCalculatorView: View {
                                     Text(ExpressionFormatter.formatCurrency(result.totalInterest))
                                         .font(NumoTypography.bodyMedium)
                                         .foregroundStyle(NumoColors.danger)
+                                        .contentTransition(.numericText())
                                 }
                             }
                         }
-                    }
-
-                    // Schedule toggle
-                    Button {
-                        viewModel.showSchedule.toggle()
-                    } label: {
-                        HStack {
-                            Text(String(localized: "还款明细"))
-                                .font(NumoTypography.bodyMedium)
-                                .foregroundStyle(NumoColors.textPrimary)
-                            Spacer()
-                            Image(systemName: viewModel.showSchedule ? "chevron.up" : "chevron.down")
-                                .font(.system(size: 12))
-                                .foregroundStyle(NumoColors.textTertiary)
-                        }
-                        .padding(.horizontal, NumoSpacing.md)
-                    }
-                    .buttonStyle(.plain)
-
-                    if viewModel.showSchedule {
-                        LazyVStack(spacing: 0) {
-                            ForEach(result.schedule) { entry in
-                                HStack {
-                                    Text("\(entry.month)")
-                                        .font(NumoTypography.caption)
-                                        .foregroundStyle(NumoColors.textTertiary)
-                                        .frame(width: 30, alignment: .leading)
-                                    Text(ExpressionFormatter.formatCurrency(entry.payment))
-                                        .font(NumoTypography.caption)
-                                        .frame(maxWidth: .infinity)
-                                    Text(ExpressionFormatter.formatCurrency(entry.principal))
-                                        .font(NumoTypography.caption)
-                                        .frame(maxWidth: .infinity)
-                                    Text(ExpressionFormatter.formatCurrency(entry.interest))
-                                        .font(NumoTypography.caption)
-                                        .foregroundStyle(NumoColors.textSecondary)
-                                        .frame(maxWidth: .infinity)
-                                }
-                                .padding(.vertical, 4)
-                                Divider()
-                            }
-                        }
-                        .padding(.horizontal, NumoSpacing.md)
                     }
                 }
-
-                Spacer()
             }
-            .padding(.horizontal, NumoSpacing.md)
-            .padding(.top, NumoSpacing.md)
+            .padding(.top, NumoSpacing.sm)
+            .padding(.horizontal, 2) // Prevent border clipping
         }
     }
-}
 
-#Preview {
-    LoanCalculatorView()
+    // MARK: - Tappable input field
+
+    private func inputField(label: String, value: String, placeholder: String, isActive: Bool, onTap: @escaping () -> Void) -> some View {
+        Button(action: onTap) {
+            HStack {
+                Text(label)
+                    .font(NumoTypography.bodySmall)
+                    .foregroundStyle(NumoColors.textSecondary)
+                Spacer()
+                Text(value.isEmpty ? placeholder : value)
+                    .font(NumoTypography.monoTitleLarge)
+                    .foregroundStyle(value.isEmpty ? NumoColors.textTertiary : (isActive ? NumoColors.textPrimary : NumoColors.textSecondary))
+                    .contentTransition(.numericText())
+                    .animation(.easeInOut(duration: 0.15), value: value)
+            }
+            .padding(.horizontal, NumoSpacing.md)
+            .frame(height: 48)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(NumoColors.surfaceSecondary)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(isActive ? NumoColors.accentRed.opacity(0.5) : .clear, lineWidth: 1.5)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+    }
 }

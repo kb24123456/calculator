@@ -13,7 +13,10 @@ struct ToolChip: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.5)
+            action()
+        } label: {
             Text(tool.displayName)
                 .font(isSelected ? NumoTypography.bodyMedium.weight(.semibold) : NumoTypography.bodyMedium)
                 .foregroundStyle(isSelected ? NumoColors.chipSelectedText : NumoColors.chipDefaultText)

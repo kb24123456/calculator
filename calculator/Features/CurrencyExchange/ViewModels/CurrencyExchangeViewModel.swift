@@ -37,10 +37,12 @@ final class CurrencyExchangeViewModel {
     }
 
     func convert() {
+        // Always update rate info regardless of input
+        updateRateInfo()
+
         let cleaned = sourceAmount.withoutGroupingSeparators
         guard !cleaned.isEmpty, let amount = Decimal(string: cleaned) else {
             convertedAmount = ""
-            rateInfo = ""
             return
         }
 
@@ -67,8 +69,13 @@ final class CurrencyExchangeViewModel {
 
         let rounded = result.rounded(to: targetCurrency.decimalPlaces)
         convertedAmount = ExpressionFormatter.formatCurrency(rounded, symbol: targetCurrency.symbol, decimalPlaces: targetCurrency.decimalPlaces)
+    }
 
-        // Rate info
+    private func updateRateInfo() {
+        guard !rates.isEmpty else {
+            rateInfo = "--"
+            return
+        }
         let directRate: Decimal
         if sourceCurrency.code == "USD" {
             directRate = rates[targetCurrency.code] ?? 1

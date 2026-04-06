@@ -14,26 +14,36 @@ struct ExpressionDisplayView: View {
         VStack(alignment: .trailing, spacing: NumoSpacing.xs) {
             Spacer()
 
-            // Expression
-            ScrollView(.horizontal, showsIndicators: false) {
-                Text(viewModel.displayExpression)
-                    .font(viewModel.currentResult.isEmpty ? NumoTypography.monoDisplayLarge : NumoTypography.monoDisplayMedium)
-                    .foregroundStyle(viewModel.currentResult.isEmpty ? NumoColors.textPrimary : NumoColors.textSecondary)
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .shake(trigger: viewModel.errorShakeTrigger)
-            }
-            .defaultScrollAnchor(.trailing)
-
-            // Result (live preview)
+            // Previous expression (shown after = is pressed and result exists)
             if !viewModel.currentResult.isEmpty && !viewModel.isError {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    Text(viewModel.displayExpression)
+                        .font(NumoTypography.monoDisplayMedium)
+                        .foregroundStyle(NumoColors.textSecondary)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                .defaultScrollAnchor(.trailing)
+
                 Text(viewModel.currentResult)
                     .font(NumoTypography.monoDisplayLarge)
                     .foregroundStyle(NumoColors.textPrimary)
                     .contentTransition(.numericText())
                     .lineLimit(1)
+                    .minimumScaleFactor(0.5)
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .transition(.opacity)
+            } else {
+                // Expression only (during input)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    Text(viewModel.displayExpression)
+                        .font(NumoTypography.monoDisplayLarge)
+                        .foregroundStyle(NumoColors.textPrimary)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .shake(trigger: viewModel.errorShakeTrigger)
+                }
+                .defaultScrollAnchor(.trailing)
             }
 
             if viewModel.isError {

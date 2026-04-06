@@ -13,6 +13,13 @@ final class ChineseUppercaseViewModel {
     var uppercaseResult: String = ""
     var isOutOfRange: Bool = false
 
+    var displayResult: String {
+        if uppercaseResult.isEmpty && !isOutOfRange {
+            return "零圆整"
+        }
+        return uppercaseResult
+    }
+
     func updateFromLastResult(_ lastResult: Decimal?) {
         guard let value = lastResult else { return }
         inputAmount = ExpressionFormatter.format(value)

@@ -6,33 +6,14 @@
 //
 
 import SwiftUI
-import SwiftData
 
+/// Display-only view for the calculator tool.
+/// Shows expression and live result. Keypad is managed by NumoTabView.
 struct CalculatorView: View {
-    @Environment(AppState.self) private var appState
-    @Environment(\.modelContext) private var modelContext
-    @State private var viewModel = CalculatorViewModel()
+    let viewModel: CalculatorViewModel
 
     var body: some View {
-        VStack(spacing: 0) {
-            // MARK: - Expression Display
-            ExpressionDisplayView(viewModel: viewModel)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(.horizontal, NumoSpacing.md)
-
-            // MARK: - Keypad
-            KeypadView(viewModel: viewModel) {
-                viewModel.calculateAndCommit(modelContext: modelContext, appState: appState)
-            }
-            .padding(.horizontal, NumoSpacing.sm)
-            .padding(.bottom, NumoSpacing.xs)
-        }
+        ExpressionDisplayView(viewModel: viewModel)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-}
-
-#Preview {
-    CalculatorView()
-        .environment(AppState())
-        .environment(HapticService())
-        .modelContainer(for: CalculationRecord.self, inMemory: true)
 }

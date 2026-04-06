@@ -7,96 +7,114 @@
 
 import SwiftUI
 
+/// Display-only YoY/MoM view. Keypad input managed by NumoTabView.
 struct YoYCalculatorView: View {
-    @Environment(AppState.self) private var appState
-    @State private var viewModel = YoYCalculatorViewModel()
+    let viewModel: YoYCalculatorViewModel
+    @Binding var activeField: ToolInputField
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: NumoSpacing.lg) {
-                // Mode selector
-                NumoSegmentedControl(
-                    options: [
-                        (String(localized: "同比 YoY"), ComparisonMode.yoy),
-                        (String(localized: "环比 MoM"), ComparisonMode.mom),
-                    ],
-                    selection: $viewModel.mode
-                )
+        VStack(spacing: NumoSpacing.md) {
+            Spacer()
 
-                // Inputs
-                VStack(alignment: .leading, spacing: NumoSpacing.xs) {
-                    Text(String(localized: "本期值"))
-                        .font(NumoTypography.bodySmall)
-                        .foregroundStyle(NumoColors.textSecondary)
-                    NumoTextField(title: "0", text: $viewModel.currentValueText)
-                        .onChange(of: viewModel.currentValueText) { viewModel.calculate() }
-                }
-
-                VStack(alignment: .leading, spacing: NumoSpacing.xs) {
-                    Text(viewModel.mode == .yoy ? String(localized: "去年同期值") : String(localized: "上期值"))
-                        .font(NumoTypography.bodySmall)
-                        .foregroundStyle(NumoColors.textSecondary)
-                    NumoTextField(title: "0", text: $viewModel.previousValueText)
-                        .onChange(of: viewModel.previousValueText) { viewModel.calculate() }
-                }
-
-                // Error
-                if let error = viewModel.errorMessage {
-                    Text(error)
-                        .font(NumoTypography.bodySmall)
-                        .foregroundStyle(NumoColors.danger)
-                }
-
-                // Result
-                if let result = viewModel.result {
-                    NumoCard {
-                        VStack(spacing: NumoSpacing.sm) {
-                            HStack {
-                                Text(viewModel.mode == .yoy ? String(localized: "同比变化") : String(localized: "环比变化"))
-                                    .font(NumoTypography.bodyMedium)
-                                    .foregroundStyle(NumoColors.textSecondary)
-                                Spacer()
-                                TrendIndicator(
-                                    trend: result.trend,
-                                    value: ExpressionFormatter.formatPercent(result.percentageChange)
-                                )
-                            }
-
-                            Divider()
-
-                            HStack {
-                                Text(String(localized: "变化量"))
-                                    .font(NumoTypography.bodyMedium)
-                                    .foregroundStyle(NumoColors.textSecondary)
-                                Spacer()
-                                Text(ExpressionFormatter.format(result.absoluteChange))
-                                    .font(NumoTypography.monoTitleLarge)
-                                    .foregroundStyle(NumoColors.textPrimary)
-                            }
-                        }
-                    }
-
-                    // Formula explanation
-                    Text(viewModel.mode == .yoy
-                         ? String(localized: "同比增长率 = (本期值 - 去年同期值) / |去年同期值| × 100%")
-                         : String(localized: "环比增长率 = (本期值 - 上期值) / |上期值| × 100%"))
-                        .font(NumoTypography.caption)
-                        .foregroundStyle(NumoColors.textTertiary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                Spacer()
+            // Current value - full width
+            inputField(
+                label: String(localized: "本期值"),
+                value: viewModel.currentValueText,
+                isActive: activeField == .primary
+            ) {
+                activeField = .primary
             }
-            .padding(.horizontal, NumoSpacing.md)
-            .padding(.top, NumoSpacing.md)
-        }
-        .onAppear {
-            viewModel.updateFromLastResult(appState.lastResult)
+
+            // YoY + MoM comparison values side by side
+            HStack(spacing: NumoSpacing.sm) {
+                inputField(
+                    label: String(localized: "同比比较值"),
+                    value: viewModel.yoyPreviousText,
+                    isActive: activeField == .secondary
+                ) {
+                    activeField = .secondary
+                }
+
+                inputField(
+                    label: String(localized: "环比比较值"),
+                    value: viewModel.momPreviousText,
+                    isActive: activeField == .tertiary
+                ) {
+                    activeField = .tertiary
+                }
+            }
+
+            // Dual results
+            if viewModel.yoyResult != nil || viewModel.momResult != nil {
+                HStack(spacing: NumoSpacing.sm) {
+                    if let yoy = viewModel.yoyResult {
+                        resultCard(title: String(localized: "同比变化"), result: yoy)
+                            .transition(.scale(scale: 0.9).combined(with: .opacity))
+                    }
+                    if let mom = viewModel.momResult {
+                        resultCard(title: String(localized: "环比变化"), result: mom)
+                            .transition(.scale(scale: 0.9).combined(with: .opacity))
+                    }
+                }
+                .animation(.spring(response: 0.35, dampingFraction: 0.75), value: viewModel.yoyResult?.percentageChange)
+                .animation(.spring(response: 0.35, dampingFraction: 0.75), value: viewModel.momResult?.percentageChange)
+            }
+
+            Spacer()
         }
     }
-}
 
-#Preview {
-    YoYCalculatorView()
-        .environment(AppState())
+    // MARK: - Result Card
+
+    private func resultCard(title: String, result: YoYResult) -> some View {
+        NumoCard {
+            VStack(spacing: NumoSpacing.xs) {
+                Text(title)
+                    .font(NumoTypography.caption)
+                    .foregroundStyle(NumoColors.textTertiary)
+
+                TrendIndicator(
+                    trend: result.trend,
+                    value: ExpressionFormatter.formatPercent(result.percentageChange)
+                )
+
+                Text(ExpressionFormatter.format(result.absoluteChange))
+                    .font(NumoTypography.bodySmall)
+                    .foregroundStyle(NumoColors.textSecondary)
+                    .contentTransition(.numericText())
+            }
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    // MARK: - Tappable input field
+
+    private func inputField(label: String, value: String, isActive: Bool, onTap: @escaping () -> Void) -> some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: NumoSpacing.xxs) {
+                Text(label)
+                    .font(NumoTypography.caption)
+                    .foregroundStyle(NumoColors.textTertiary)
+                Text(value.isEmpty ? "0" : value)
+                    .font(NumoTypography.monoTitleLarge)
+                    .foregroundStyle(isActive ? NumoColors.textPrimary : NumoColors.textSecondary)
+                    .contentTransition(.numericText())
+                    .animation(.easeInOut(duration: 0.15), value: value)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, NumoSpacing.md)
+            .padding(.vertical, NumoSpacing.sm)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(NumoColors.surfaceSecondary)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(isActive ? NumoColors.accentRed.opacity(0.5) : .clear, lineWidth: 1.5)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+    }
 }

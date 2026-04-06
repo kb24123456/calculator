@@ -7,12 +7,15 @@
 
 import SwiftUI
 
+/// Display-only date calculator view.
+/// For offset/workday modes, keypad input is managed by NumoTabView.
+/// For difference mode, uses DatePickers only.
 struct DateCalculatorView: View {
-    @State private var viewModel = DateCalculatorViewModel()
+    @Bindable var viewModel: DateCalculatorViewModel
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: NumoSpacing.lg) {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: NumoSpacing.md) {
                 NumoSegmentedControl(
                     options: [
                         (String(localized: "日期间隔"), DateCalcMode.difference),
@@ -30,11 +33,8 @@ struct DateCalculatorView: View {
                 case .workday:
                     workdayModeView
                 }
-
-                Spacer()
             }
-            .padding(.horizontal, NumoSpacing.md)
-            .padding(.top, NumoSpacing.md)
+            .padding(.top, NumoSpacing.sm)
         }
     }
 
@@ -53,10 +53,13 @@ struct DateCalculatorView: View {
                         Text(String(localized: "相差 \(abs(result.days)) 天"))
                             .font(NumoTypography.titleLarge)
                             .foregroundStyle(NumoColors.textPrimary)
+                            .contentTransition(.numericText())
+                            .animation(.easeInOut(duration: 0.2), value: result.days)
                         if result.weeks > 0 {
                             Text(String(localized: "\(result.weeks) 周 \(result.remainingDays) 天"))
                                 .font(NumoTypography.bodyMedium)
                                 .foregroundStyle(NumoColors.textSecondary)
+                                .contentTransition(.numericText())
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -72,17 +75,34 @@ struct DateCalculatorView: View {
         VStack(spacing: NumoSpacing.md) {
             datePicker(label: String(localized: "起始日期"), date: $viewModel.offsetStartDate)
 
-            HStack(spacing: NumoSpacing.xs) {
-                NumoTextField(title: String(localized: "天数"), text: $viewModel.offsetDays, keyboardType: .numberPad)
-                    .onChange(of: viewModel.offsetDays) { viewModel.calculateOffset() }
-
-                NumoSegmentedControl(
-                    options: [(String(localized: "之后"), true), (String(localized: "之前"), false)],
-                    selection: $viewModel.offsetForward
-                )
-                .frame(width: 140)
-                .onChange(of: viewModel.offsetForward) { viewModel.calculateOffset() }
+            // Days input display (keypad feeds into this)
+            HStack {
+                Text(String(localized: "天数"))
+                    .font(NumoTypography.bodySmall)
+                    .foregroundStyle(NumoColors.textSecondary)
+                Spacer()
+                Text(viewModel.offsetDays.isEmpty ? "0" : viewModel.offsetDays)
+                    .font(NumoTypography.monoTitleLarge)
+                    .foregroundStyle(NumoColors.textPrimary)
+                    .contentTransition(.numericText())
+                    .animation(.easeInOut(duration: 0.15), value: viewModel.offsetDays)
             }
+            .padding(.horizontal, NumoSpacing.md)
+            .frame(height: 48)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(NumoColors.surfaceSecondary)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(NumoColors.accentRed.opacity(0.5), lineWidth: 1.5)
+                    )
+            )
+
+            NumoSegmentedControl(
+                options: [(String(localized: "之后"), true), (String(localized: "之前"), false)],
+                selection: $viewModel.offsetForward
+            )
+            .onChange(of: viewModel.offsetForward) { viewModel.calculateOffset() }
 
             if let result = viewModel.offsetResult {
                 NumoCard {
@@ -106,17 +126,34 @@ struct DateCalculatorView: View {
         VStack(spacing: NumoSpacing.md) {
             datePicker(label: String(localized: "起始日期"), date: $viewModel.workdayStartDate)
 
-            HStack(spacing: NumoSpacing.xs) {
-                NumoTextField(title: String(localized: "工作日天数"), text: $viewModel.workdayCount, keyboardType: .numberPad)
-                    .onChange(of: viewModel.workdayCount) { viewModel.calculateWorkday() }
-
-                NumoSegmentedControl(
-                    options: [(String(localized: "之后"), true), (String(localized: "之前"), false)],
-                    selection: $viewModel.workdayForward
-                )
-                .frame(width: 140)
-                .onChange(of: viewModel.workdayForward) { viewModel.calculateWorkday() }
+            // Workday count display (keypad feeds into this)
+            HStack {
+                Text(String(localized: "工作日天数"))
+                    .font(NumoTypography.bodySmall)
+                    .foregroundStyle(NumoColors.textSecondary)
+                Spacer()
+                Text(viewModel.workdayCount.isEmpty ? "0" : viewModel.workdayCount)
+                    .font(NumoTypography.monoTitleLarge)
+                    .foregroundStyle(NumoColors.textPrimary)
+                    .contentTransition(.numericText())
+                    .animation(.easeInOut(duration: 0.15), value: viewModel.workdayCount)
             }
+            .padding(.horizontal, NumoSpacing.md)
+            .frame(height: 48)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(NumoColors.surfaceSecondary)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(NumoColors.accentRed.opacity(0.5), lineWidth: 1.5)
+                    )
+            )
+
+            NumoSegmentedControl(
+                options: [(String(localized: "之后"), true), (String(localized: "之前"), false)],
+                selection: $viewModel.workdayForward
+            )
+            .onChange(of: viewModel.workdayForward) { viewModel.calculateWorkday() }
 
             Toggle(String(localized: "排除中国法定节假日"), isOn: $viewModel.includeHolidays)
                 .font(NumoTypography.bodyMedium)
@@ -160,8 +197,4 @@ struct DateCalculatorView: View {
         formatter.dateFormat = "EEEE"
         return formatter.string(from: date)
     }
-}
-
-#Preview {
-    DateCalculatorView()
 }

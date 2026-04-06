@@ -25,8 +25,8 @@ enum NumoTypography {
     static let caption = Font.system(size: 11, weight: .regular, design: .rounded)
 
     // MARK: - Keypad
-    static let keypadLarge = Font.system(size: 28, weight: .medium, design: .rounded)
-    static let keypadMedium = Font.system(size: 22, weight: .medium, design: .rounded)
+    static let keypadLarge = Font.system(size: 32, weight: .medium, design: .rounded)
+    static let keypadMedium = Font.system(size: 26, weight: .medium, design: .rounded)
 
     // MARK: - Monospaced for numeric results
     static let monoDisplayLarge = Font.system(size: 48, weight: .light, design: .rounded).monospacedDigit()

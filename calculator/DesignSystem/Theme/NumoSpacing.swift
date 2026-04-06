@@ -22,7 +22,7 @@ enum NumoSpacing {
     static let screenHorizontal: CGFloat = md
 
     /// Keypad button spacing
-    static let keypadGap: CGFloat = xs
+    static let keypadGap: CGFloat = xxs
 
     /// Chip spacing
     static let chipGap: CGFloat = xs

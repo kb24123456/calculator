@@ -7,6 +7,13 @@
 
 import SwiftUI
 
+/// Which input field is active in multi-field tools
+enum ToolInputField: Hashable {
+    case primary
+    case secondary
+    case tertiary
+}
+
 enum Tool: String, CaseIterable, Identifiable {
     case calculator = "calculator"
     case currency = "currency"
@@ -57,6 +64,7 @@ final class AppState {
     var selectedTool: Tool = .calculator
     var lastResult: Decimal?
     var isDrawerOpen: Bool = false
+    var operatorOnRight: Bool = true  // true = operators on right (default)
 
     func selectTool(_ tool: Tool) {
         withAnimation(.easeInOut(duration: 0.25)) {

@@ -36,8 +36,9 @@ enum NumoColors {
                                           dark: .white.opacity(0.12))
 
     // MARK: - Chip
-    static let chipSelected = accentRed
-    static let chipSelectedText = Color.white
+    static let chipSelected = Color(light: .init(red: 0.15, green: 0.15, blue: 0.15),
+                                     dark: .init(red: 0.85, green: 0.85, blue: 0.85))
+    static let chipSelectedText = Color(light: .white, dark: .black)
     static let chipDefault = Color(light: .init(red: 0.95, green: 0.95, blue: 0.97),
                                     dark: .init(red: 0.17, green: 0.17, blue: 0.18))
     static let chipDefaultText = Color(light: .init(red: 0.24, green: 0.24, blue: 0.26).opacity(0.6),

@@ -19,8 +19,13 @@ struct CalcButton: View {
     let type: CalcButtonType
     let span: Int
     let action: () -> Void
+    var onLongPressDelete: (() -> Void)?
+    var onLongPressClear: (() -> Void)?
 
-    @State private var isHighlighted = false
+    @State private var isLongPressing = false
+    @State private var deleteTimer: Timer?
+    @State private var deleteCount = 0
+    @State private var showClearBubble = false
 
     init(_ label: String, type: CalcButtonType = .number, span: Int = 1, action: @escaping () -> Void) {
         self.label = label
@@ -30,17 +35,74 @@ struct CalcButton: View {
     }
 
     var body: some View {
+        if label == "⌫" {
+            deleteButtonContent
+        } else {
+            standardButtonContent
+        }
+    }
+
+    // MARK: - Standard Button
+
+    private var standardButtonContent: some View {
         Button {
             triggerHaptic()
             action()
         } label: {
-            buttonContent
+            buttonLabel
         }
         .buttonStyle(CalcButtonStyle(type: type))
+        .contentShape(Rectangle())
     }
 
+    // MARK: - Delete Button (with long press)
+
+    private var deleteButtonContent: some View {
+        ZStack(alignment: .top) {
+            buttonLabel
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    triggerHaptic()
+                    action()
+                }
+                .onLongPressGesture(minimumDuration: 0.3) {
+                    // Long press recognized - start rapid delete
+                    startRapidDelete()
+                } onPressingChanged: { pressing in
+                    if !pressing && isLongPressing {
+                        stopRapidDelete()
+                    }
+                }
+
+            // Clear bubble that appears after sustained long press
+            if showClearBubble {
+                Button {
+                    onLongPressClear?()
+                    stopRapidDelete()
+                } label: {
+                    Text("AC")
+                        .font(NumoTypography.bodySmall.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, NumoSpacing.sm)
+                        .padding(.vertical, NumoSpacing.xxs)
+                        .background(
+                            Capsule().fill(NumoColors.chipSelected)
+                        )
+                }
+                .buttonStyle(.plain)
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.5).combined(with: .opacity).combined(with: .offset(y: 10)),
+                    removal: .opacity
+                ))
+                .offset(y: -36)
+            }
+        }
+    }
+
+    // MARK: - Button Label
+
     @ViewBuilder
-    private var buttonContent: some View {
+    private var buttonLabel: some View {
         switch type {
         case .equals:
             Text(label)
@@ -66,8 +128,54 @@ struct CalcButton: View {
                 .font(NumoTypography.keypadLarge)
                 .foregroundStyle(NumoColors.textPrimary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(
+                    Circle()
+                        .fill(NumoColors.keypadBackground)
+                )
         }
     }
+
+    // MARK: - Long Press Delete
+
+    private func startRapidDelete() {
+        isLongPressing = true
+        deleteCount = 0
+
+        // Initial medium-speed delete
+        deleteTimer = Timer.scheduledTimer(withTimeInterval: 0.12, repeats: true) { timer in
+            deleteCount += 1
+            onLongPressDelete?()
+            triggerHaptic()
+
+            // After 5 deletes, accelerate
+            if deleteCount == 5 {
+                timer.invalidate()
+                deleteTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+                    deleteCount += 1
+                    onLongPressDelete?()
+
+                    // Show clear bubble after ~1.5s total
+                    if deleteCount >= 15 && !showClearBubble {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                            showClearBubble = true
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func stopRapidDelete() {
+        isLongPressing = false
+        deleteTimer?.invalidate()
+        deleteTimer = nil
+        deleteCount = 0
+        withAnimation(.easeOut(duration: 0.15)) {
+            showClearBubble = false
+        }
+    }
+
+    // MARK: - Haptics
 
     private func triggerHaptic() {
         let generator: UIImpactFeedbackGenerator
@@ -75,16 +183,16 @@ struct CalcButton: View {
         switch type {
         case .number:
             generator = UIImpactFeedbackGenerator(style: .light)
-            intensity = 0.6
-        case .op:
-            generator = UIImpactFeedbackGenerator(style: .light)
             intensity = 0.8
-        case .equals:
+        case .op:
             generator = UIImpactFeedbackGenerator(style: .medium)
-            intensity = 0.9
+            intensity = 1.0
+        case .equals:
+            generator = UIImpactFeedbackGenerator(style: .heavy)
+            intensity = 1.0
         case .function:
-            generator = UIImpactFeedbackGenerator(style: .rigid)
-            intensity = 0.5
+            generator = UIImpactFeedbackGenerator(style: .medium)
+            intensity = 0.8
         }
         generator.impactOccurred(intensity: intensity)
     }
@@ -99,7 +207,13 @@ private struct CalcButtonStyle: ButtonStyle {
         configuration.label
             .background(
                 Group {
-                    if type == .number || type == .function {
+                    if type == .number {
+                        // Number keys: darken background on press
+                        Circle()
+                            .fill(NumoColors.keyPressHighlight)
+                            .opacity(configuration.isPressed ? 1 : 0)
+                            .animation(NumoAnimations.keyHighlight, value: configuration.isPressed)
+                    } else if type == .function {
                         Circle()
                             .fill(NumoColors.keyPressHighlight)
                             .opacity(configuration.isPressed ? 1 : 0)
@@ -110,26 +224,31 @@ private struct CalcButtonStyle: ButtonStyle {
             .scaleEffect(
                 (type == .op || type == .equals) && configuration.isPressed ? 0.92 : 1.0
             )
+            .scaleEffect(
+                (type == .number || type == .function) && configuration.isPressed ? 0.95 : 1.0
+            )
             .animation(NumoAnimations.buttonPress, value: configuration.isPressed)
     }
 }
 
 #Preview {
     VStack(spacing: 16) {
-        HStack(spacing: 8) {
+        HStack(spacing: 4) {
             CalcButton("7") {}
             CalcButton("8") {}
             CalcButton("9") {}
             CalcButton("×", type: .op) {}
         }
-        HStack(spacing: 8) {
+        .frame(height: 64)
+        HStack(spacing: 4) {
             CalcButton("AC", type: .function) {}
-            CalcButton("±", type: .function) {}
+            CalcButton("⌫", type: .function) {}
             CalcButton("%", type: .function) {}
             CalcButton("÷", type: .op) {}
         }
+        .frame(height: 64)
         CalcButton("=", type: .equals) {}
-            .frame(height: 56)
+            .frame(height: 64)
     }
     .padding()
 }

@@ -11,10 +11,15 @@ struct CurrencyInfo: Identifiable, Hashable {
     let code: String       // ISO 4217
     let symbol: String
     let flag: String
-    let nameKey: String
+    let nameKey: String    // Chinese name (source language)
     let decimalPlaces: Int
 
     var id: String { code }
+
+    /// Localized display name: Chinese name in zh, ISO code in en
+    var localizedName: String {
+        String(localized: String.LocalizationValue(nameKey))
+    }
 
     static let all: [CurrencyInfo] = [
         CurrencyInfo(code: "CNY", symbol: "¥", flag: "🇨🇳", nameKey: "人民币", decimalPlaces: 2),

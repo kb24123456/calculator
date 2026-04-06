@@ -185,8 +185,10 @@ struct ExpressionEvaluator {
                 throw EvaluationError.domainError("factorial requires non-negative integer ≤ 170")
             }
             var f: Decimal = 1
-            for i in 2...max(intVal, 1) {
-                f *= Decimal(i)
+            if intVal >= 2 {
+                for i in 2...intVal {
+                    f *= Decimal(i)
+                }
             }
             return f
         }
@@ -202,8 +204,9 @@ struct ExpressionEvaluator {
 
     /// Contextual percentage handling:
     /// - `10%` alone → `0.1`
-    /// - `200+10%` → `200+200×10÷100` → `200+20` → `220`
-    /// - `200×10%` → `200×10÷100` → `200×0.1` → `20`
+    /// - `200+10%` → `200 × (1 + 10/100)` = `220`
+    /// - `200-10%` → `200 × (1 - 10/100)` = `180`
+    /// - `200×10%` → `200 × 0.1` = `20`
     private static func preprocessPercentage(_ tokens: [CalcToken]) -> [CalcToken] {
         var result: [CalcToken] = []
 
@@ -219,18 +222,18 @@ struct ExpressionEvaluator {
                     let beforeNumber = lastNumberIndex > 0 ? result[lastNumberIndex - 1] : nil
 
                     if case .op(let prevOp) = beforeNumber, (prevOp == .add || prevOp == .subtract) {
-                        // Pattern: X + Y% → X + X × Y ÷ 100
-                        // Replace: remove the Y, remove the +/-, insert: +/- base × Y ÷ 100
-                        // We need to find the "base" value, which is everything before the operator
-                        // Simplified: replace Y with Y÷100, and multiply by a reference to the left operand
-                        // Actually simpler: convert in-place
-                        // 200 + 10% → 200 + (200 × 10 ÷ 100) = 200 + 20 = 220
-                        // But we can't reference "200" easily in postfix.
-                        // Simpler approach: `X + Y%` → `X × (1 + Y/100)` or `X + Y% → X × (100+Y)/100`
-                        // Even simpler for evaluation: just convert to `X op (X * Y / 100)`
-                        // Let's do: replace `Y%` with `Y÷100` and wrap the add/sub:
-                        // We'll handle this at evaluation by converting Y% to Y/100 and noting context
-                        result[lastNumberIndex] = .number(percentValue / 100)
+                        // Pattern: X + Y% → X × (1 + Y/100)
+                        // Pattern: X - Y% → X × (1 - Y/100)
+                        // Remove the operator and the number, then append × (1 op Y/100)
+                        let opToken = result[lastNumberIndex - 1]
+                        result.removeLast() // remove number(Y)
+                        result.removeLast() // remove op(+/-)
+                        result.append(.op(.multiply))
+                        result.append(.openParen)
+                        result.append(.number(1))
+                        result.append(opToken)
+                        result.append(.number(percentValue / 100))
+                        result.append(.closeParen)
                     } else {
                         // Standalone or after × ÷: just divide by 100
                         result[lastNumberIndex] = .number(percentValue / 100)

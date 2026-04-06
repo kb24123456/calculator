@@ -9,27 +9,22 @@ import SwiftUI
 
 @Observable
 final class YoYCalculatorViewModel {
-    var mode: ComparisonMode = .yoy
     var currentValueText: String = ""
-    var previousValueText: String = ""
-    var result: YoYResult?
+    var yoyPreviousText: String = ""
+    var momPreviousText: String = ""
+    var yoyResult: YoYResult?
+    var momResult: YoYResult?
     var errorMessage: String?
 
     func calculate() {
         let current = currentValueText.decimalValue
-        let previous = previousValueText.decimalValue
+        yoyResult = computeResult(current: current, previous: yoyPreviousText.decimalValue)
+        momResult = computeResult(current: current, previous: momPreviousText.decimalValue)
+    }
 
-        guard let current, let previous else {
-            result = nil
-            errorMessage = nil
-            return
-        }
-
-        guard previous != 0 else {
-            result = nil
-            errorMessage = String(localized: "上期值不能为零")
-            return
-        }
+    private func computeResult(current: Decimal?, previous: Decimal?) -> YoYResult? {
+        guard let current, let previous else { return nil }
+        guard previous != 0 else { return nil }
 
         let absoluteChange = current - previous
         let percentageChange = (absoluteChange / previous.absoluteValue) * 100
@@ -43,19 +38,12 @@ final class YoYCalculatorViewModel {
             trend = .flat
         }
 
-        result = YoYResult(
+        return YoYResult(
             percentageChange: percentageChange.rounded(to: 2),
             absoluteChange: absoluteChange,
             trend: trend,
             currentValue: current,
             previousValue: previous
         )
-        errorMessage = nil
-    }
-
-    func updateFromLastResult(_ lastResult: Decimal?) {
-        guard let value = lastResult else { return }
-        currentValueText = ExpressionFormatter.format(value)
-        calculate()
     }
 }

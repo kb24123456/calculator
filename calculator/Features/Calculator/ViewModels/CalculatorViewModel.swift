@@ -36,13 +36,11 @@ final class CalculatorViewModel {
         if char != "." && char != "0" && extractCurrentNumber() == "0" {
             // Replace the leading zero
             expressionString = String(expressionString.dropLast()) + char
-            evaluate()
             return
         }
 
         isError = false
         expressionString += char
-        evaluate()
     }
 
     func appendOperator(_ op: String) {
@@ -57,7 +55,6 @@ final class CalculatorViewModel {
             // Allow negative number at start
             expressionString = "-"
         }
-        evaluate()
     }
 
     func appendParenthesis() {
@@ -77,14 +74,12 @@ final class CalculatorViewModel {
         } else {
             expressionString += "("
         }
-        evaluate()
     }
 
     func deleteBackward() {
         guard !expressionString.isEmpty else { return }
         expressionString.removeLast()
         isError = false
-        evaluate()
     }
 
     func clear() {
@@ -102,12 +97,10 @@ final class CalculatorViewModel {
         } else {
             expressionString = "-" + expressionString
         }
-        evaluate()
     }
 
     func applyPercent() {
         expressionString += "%"
-        evaluate()
     }
 
     func calculateAndCommit(modelContext: ModelContext, appState: AppState) {
@@ -136,25 +129,6 @@ final class CalculatorViewModel {
         } catch {
             isError = true
             errorShakeTrigger += 1
-            currentResult = ""
-        }
-    }
-
-    // MARK: - Live Evaluation
-
-    private func evaluate() {
-        guard !expressionString.isEmpty else {
-            currentResult = ""
-            return
-        }
-
-        do {
-            let tokens = try ExpressionParser.parse(expressionString)
-            let result = try ExpressionEvaluator.evaluate(tokens)
-            currentResult = ExpressionFormatter.format(result)
-            isError = false
-        } catch {
-            // During typing, errors are expected (incomplete expressions)
             currentResult = ""
         }
     }
