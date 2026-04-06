@@ -13,6 +13,10 @@ struct calculatorApp: App {
     @State private var appState = AppState()
     @State private var hapticService = HapticService()
 
+    init() {
+        NotificationService.shared.requestAuthorizationIfNeeded()
+    }
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             CalculationRecord.self,

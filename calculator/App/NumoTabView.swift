@@ -28,8 +28,8 @@ struct NumoTabView: View {
     @State private var showHistory = false
     @State private var showSettings = false
     @State private var isKeypadCollapsed = false
-    @State private var showCopiedToast = false
     @State private var isResultHighlighted = false
+    @State private var isToastVisible = false
 
     var body: some View {
         NavigationStack {
@@ -46,10 +46,11 @@ struct NumoTabView: View {
                         copyCurrentResult()
                     }
                     .overlay(
-                        Color.primary
-                            .opacity(isResultHighlighted ? 0.07 : 0)
+                        Color.blue
+                            .opacity(isResultHighlighted ? 0.13 : 0)
+                            .blur(radius: 18)
                             .allowsHitTesting(false)
-                            .animation(.easeOut(duration: 0.08), value: isResultHighlighted)
+                            .animation(.easeOut(duration: 0.12), value: isResultHighlighted)
                     )
 
                 // MARK: - Fixed Keypad
@@ -92,15 +93,6 @@ struct NumoTabView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-            .overlay(alignment: .top) {
-                if showCopiedToast {
-                    copiedToast
-                        .padding(.top, NumoSpacing.xs)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .zIndex(999)
-                }
-            }
-            .animation(.spring(response: 0.38, dampingFraction: 0.72), value: showCopiedToast)
             .background(NumoColors.surface)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -119,7 +111,7 @@ struct NumoTabView: View {
                     }
                 }
                 ToolbarItem(placement: .principal) {
-                    hudPrincipal
+                    principalArea
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
@@ -161,10 +153,43 @@ struct NumoTabView: View {
         }
     }
 
-    // MARK: - Global HUD (NavigationBar principal)
+    // MARK: - NavigationBar Principal (HUD + Toast 合层)
+
+    // Toast 直接在 toolbar 里渲染，天然和两侧按钮垂直居中，无需任何坐标计算
+    @ViewBuilder
+    private var principalArea: some View {
+        ZStack {
+            // 底层：汇率 HUD（仅汇率页可见）
+            hudContent
+                .opacity(isToastVisible ? 0 : 1)
+                .animation(.easeOut(duration: 0.12), value: isToastVisible)
+
+            // 顶层：复制 Toast
+            HStack(spacing: NumoSpacing.xs) {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 13, weight: .bold))
+                Text(String(localized: "结果已复制"))
+                    .font(.system(size: 15, weight: .medium, design: .rounded))
+            }
+            .foregroundStyle(.primary)
+            .padding(.horizontal, NumoSpacing.lg)
+            .padding(.vertical, NumoSpacing.sm)
+            .glassEffect(in: Capsule())
+            // offset + scale + opacity: 纯 GPU 变换，跑满 120Hz
+            .offset(y: isToastVisible ? 0 : -20)
+            .scaleEffect(isToastVisible ? 1 : 0.75)
+            .opacity(isToastVisible ? 1 : 0)
+            .animation(
+                isToastVisible
+                    ? .spring(response: 0.36, dampingFraction: 0.68)
+                    : .spring(response: 0.24, dampingFraction: 0.86),
+                value: isToastVisible
+            )
+        }
+    }
 
     @ViewBuilder
-    private var hudPrincipal: some View {
+    private var hudContent: some View {
         switch appState.selectedTool {
         case .currency:
             VStack(spacing: 2) {
@@ -528,29 +553,11 @@ struct NumoTabView: View {
         withAnimation(.easeOut(duration: 0.08)) { isResultHighlighted = true }
         withAnimation(.easeIn(duration: 0.25).delay(0.12)) { isResultHighlighted = false }
 
-        // Show toast then auto-dismiss
-        showCopiedToast = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
-            withAnimation(.spring(response: 0.38, dampingFraction: 0.72)) {
-                showCopiedToast = false
-            }
+        // Glass toast
+        isToastVisible = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+            isToastVisible = false
         }
-    }
-
-    private var copiedToast: some View {
-        HStack(spacing: NumoSpacing.xs) {
-            Image(systemName: "checkmark")
-                .font(.system(size: 12, weight: .bold))
-            Text(String(localized: "结果已复制"))
-                .font(NumoTypography.bodySmall.weight(.semibold))
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, NumoSpacing.md)
-        .padding(.vertical, NumoSpacing.xs)
-        .background(
-            Capsule()
-                .fill(Color.black.opacity(0.78))
-        )
     }
 
     private func collapseKeypad() {
