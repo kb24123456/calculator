@@ -51,25 +51,71 @@ enum Tool: String, CaseIterable, Identifiable {
         case .loan: "house"
         }
     }
-
-    /// Tools shown in the top toolbar chips
-    static let toolbarTools: [Tool] = [.calculator, .currency, .uppercase, .yoy, .incomeTax]
-
-    /// Tools shown in the "more" drawer
-    static let drawerTools: [Tool] = [.date, .unit, .loan]
 }
 
 @Observable
 final class AppState {
     var selectedTool: Tool = .calculator
     var lastResult: Decimal?
-    var isDrawerOpen: Bool = false
+    var isAllToolsPanelOpen: Bool = false
     var operatorOnRight: Bool = true  // true = operators on right (default)
+
+    // MARK: - Favorites
+
+    static let defaultFavorites: [Tool] = [.currency, .uppercase, .yoy]
+    private static let favoritesKey = "numo_favorite_tools"
+
+    var favoriteTools: [Tool] {
+        didSet {
+            Self.saveFavorites(favoriteTools)
+        }
+    }
+
+    init() {
+        self.favoriteTools = Self.loadFavorites()
+    }
 
     func selectTool(_ tool: Tool) {
         withAnimation(.easeInOut(duration: 0.25)) {
             selectedTool = tool
-            isDrawerOpen = false
+            isAllToolsPanelOpen = false
         }
+    }
+
+    func toggleFavorite(_ tool: Tool) {
+        if let index = favoriteTools.firstIndex(of: tool) {
+            // Don't remove the last favorite
+            if favoriteTools.count > 1 {
+                favoriteTools.remove(at: index)
+            }
+        } else {
+            favoriteTools.append(tool)
+        }
+    }
+
+    func isFavorite(_ tool: Tool) -> Bool {
+        favoriteTools.contains(tool)
+    }
+
+    func moveFavorite(from source: IndexSet, to destination: Int) {
+        favoriteTools.move(fromOffsets: source, toOffset: destination)
+    }
+
+    // MARK: - Persistence
+
+    private static func saveFavorites(_ tools: [Tool]) {
+        let rawValues = tools.map { $0.rawValue }
+        if let data = try? JSONEncoder().encode(rawValues) {
+            UserDefaults.standard.set(data, forKey: favoritesKey)
+        }
+    }
+
+    private static func loadFavorites() -> [Tool] {
+        guard let data = UserDefaults.standard.data(forKey: favoritesKey),
+              let rawValues = try? JSONDecoder().decode([String].self, from: data) else {
+            return defaultFavorites
+        }
+        let tools = rawValues.compactMap { Tool(rawValue: $0) }
+        return tools.isEmpty ? defaultFavorites : tools
     }
 }

@@ -28,62 +28,109 @@ struct NumoTabView: View {
     @State private var showHistory = false
     @State private var showSettings = false
     @State private var isKeypadCollapsed = false
+    @State private var showCopiedToast = false
+    @State private var isResultHighlighted = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            // MARK: - Top Bar (History + Tool Toolbar)
-            topBar
-                .padding(.top, NumoSpacing.xs)
+        NavigationStack {
+            VStack(spacing: 0) {
+                // MARK: - Top Bar (Tool Chips only)
+                topBar
+                    .padding(.top, NumoSpacing.xs)
 
-            // MARK: - Morphing Display Area
-            toolDisplay
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(.horizontal, NumoSpacing.md)
-                .onLongPressGesture {
-                    pasteFromClipboard()
-                }
-
-            // MARK: - Fixed Keypad
-            if !isKeypadCollapsed {
-                KeypadView(
-                    onCharacter: handleCharacter,
-                    onOperator: handleOperator,
-                    onDelete: handleDelete,
-                    onClear: handleClear,
-                    onPercent: handlePercent,
-                    onEquals: handleEquals,
-                    onUndo: handleUndo,
-                    operatorOnRight: appState.operatorOnRight,
-                    canUndo: calculatorVM.canUndo && appState.selectedTool == .calculator
-                )
-                .frame(height: 350)
-                .padding(.horizontal, NumoSpacing.sm)
-                .padding(.bottom, NumoSpacing.xxs)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            } else {
-                Button {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                        isKeypadCollapsed = false
-                    }
-                } label: {
-                    HStack(spacing: NumoSpacing.xs) {
-                        Image(systemName: "chevron.up")
-                        Text(String(localized: "展开键盘"))
-                            .font(NumoTypography.bodySmall)
-                    }
-                    .foregroundStyle(NumoColors.textSecondary)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 44)
-                    .background(NumoColors.surfaceSecondary)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                // MARK: - Morphing Display Area
+                toolDisplay
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(.horizontal, NumoSpacing.md)
-                    .padding(.bottom, NumoSpacing.xs)
+                    .onLongPressGesture(minimumDuration: 0.4) {
+                        copyCurrentResult()
+                    }
+                    .overlay(
+                        Color.primary
+                            .opacity(isResultHighlighted ? 0.07 : 0)
+                            .allowsHitTesting(false)
+                            .animation(.easeOut(duration: 0.08), value: isResultHighlighted)
+                    )
+
+                // MARK: - Fixed Keypad
+                if !isKeypadCollapsed {
+                    KeypadView(
+                        onCharacter: handleCharacter,
+                        onOperator: handleOperator,
+                        onDelete: handleDelete,
+                        onClear: handleClear,
+                        onPercent: handlePercent,
+                        onEquals: handleEquals,
+                        onUndo: handleUndo,
+                        operatorOnRight: appState.operatorOnRight,
+                        canUndo: calculatorVM.canUndo && appState.selectedTool == .calculator
+                    )
+                    .frame(height: 350)
+                    .padding(.horizontal, NumoSpacing.sm)
+                    .padding(.bottom, NumoSpacing.xxs)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                } else {
+                    Button {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            isKeypadCollapsed = false
+                        }
+                    } label: {
+                        HStack(spacing: NumoSpacing.xs) {
+                            Image(systemName: "chevron.up")
+                            Text(String(localized: "展开键盘"))
+                                .font(NumoTypography.bodySmall)
+                        }
+                        .foregroundStyle(NumoColors.textSecondary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(NumoColors.surfaceSecondary)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .padding(.horizontal, NumoSpacing.md)
+                        .padding(.bottom, NumoSpacing.xs)
+                    }
+                    .buttonStyle(.plain)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-                .buttonStyle(.plain)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+            .overlay(alignment: .top) {
+                if showCopiedToast {
+                    copiedToast
+                        .padding(.top, NumoSpacing.xs)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .zIndex(999)
+                }
+            }
+            .animation(.spring(response: 0.38, dampingFraction: 0.72), value: showCopiedToast)
+            .background(NumoColors.surface)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        if appState.selectedTool == .calculator {
+                            showHistory = true
+                        } else {
+                            appState.selectTool(.calculator)
+                        }
+                    } label: {
+                        Image(systemName: appState.selectedTool == .calculator ? "clock" : "chevron.backward")
+                            .font(.system(size: 16, weight: .medium))
+                            .contentTransition(.symbolEffect(.replace.downUp))
+                            .animation(NumoAnimations.chipSelection, value: appState.selectedTool)
+                    }
+                }
+                ToolbarItem(placement: .principal) {
+                    hudPrincipal
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "line.3.horizontal")
+                            .font(.system(size: 16, weight: .medium))
+                    }
+                }
             }
         }
-        .background(NumoColors.surface)
         .onChange(of: appState.selectedTool) { _, _ in
             activeField = .primary
             if isKeypadCollapsed {
@@ -93,12 +140,12 @@ struct NumoTabView: View {
             }
         }
         .sheet(isPresented: Binding(
-            get: { appState.isDrawerOpen },
-            set: { appState.isDrawerOpen = $0 }
+            get: { appState.isAllToolsPanelOpen },
+            set: { appState.isAllToolsPanelOpen = $0 }
         )) {
-            ToolDrawerView()
+            AllToolsPanelView()
                 .environment(appState)
-                .presentationDetents([.fraction(0.4), .large])
+                .presentationDetents([.fraction(0.5), .large])
                 .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showHistory) {
@@ -109,67 +156,73 @@ struct NumoTabView: View {
         .sheet(isPresented: $showSettings) {
             SettingsSheetView()
                 .environment(appState)
-                .presentationDetents([.fraction(0.3)])
+                .presentationDetents([.fraction(0.5), .large])
                 .presentationDragIndicator(.visible)
+        }
+    }
+
+    // MARK: - Global HUD (NavigationBar principal)
+
+    @ViewBuilder
+    private var hudPrincipal: some View {
+        switch appState.selectedTool {
+        case .currency:
+            VStack(spacing: 2) {
+                Text(currencyVM.rateInfo.isEmpty ? "—" : currencyVM.rateInfo)
+                    .font(.system(size: 12, weight: .medium).monospacedDigit())
+                    .foregroundStyle(NumoColors.textSecondary)
+                if let lastUpdated = currencyVM.lastUpdated {
+                    Text(lastUpdated.relativeDescription)
+                        .font(.system(size: 10).monospacedDigit())
+                        .foregroundStyle(NumoColors.textTertiary)
+                }
+            }
+            .multilineTextAlignment(.center)
+            .transition(.push(from: .bottom).combined(with: .opacity))
+        default:
+            Color.clear
+                .frame(width: 1, height: 1)
+                .transition(.push(from: .top).combined(with: .opacity))
         }
     }
 
     // MARK: - Top Bar
 
     private var topBar: some View {
-        HStack(spacing: 0) {
-            // History button
-            Button {
-                showHistory = true
-            } label: {
-                Image(systemName: "clock.arrow.trianglehead.counterclockwise.rotate.90")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(NumoColors.textSecondary)
-                    .frame(width: 36, height: 36)
-            }
-            .buttonStyle(.plain)
-            .padding(.leading, NumoSpacing.sm)
-
-            // Tool chips
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: NumoSpacing.chipGap) {
-                    ForEach(Tool.allCases) { tool in
-                        if Tool.toolbarTools.contains(tool) {
-                            ToolChip(tool: tool, isSelected: appState.selectedTool == tool) {
-                                appState.selectTool(tool)
-                            }
-                        }
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: NumoSpacing.chipGap) {
+                ForEach(appState.favoriteTools.filter { $0 != .calculator }) { tool in
+                    ToolChip(tool: tool, isSelected: appState.selectedTool == tool) {
+                        appState.selectTool(tool)
                     }
-
-                    // More button
-                    Button {
-                        appState.isDrawerOpen = true
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .font(NumoTypography.bodyMedium)
-                            .foregroundStyle(NumoColors.textSecondary)
-                            .frame(width: 36, height: 36)
-                            .background(
-                                Circle()
-                                    .fill(NumoColors.chipDefault)
-                            )
-                    }
-                    .buttonStyle(.plain)
                 }
-                .padding(.horizontal, NumoSpacing.xs)
-            }
 
-            // Settings button
-            Button {
-                showSettings = true
-            } label: {
-                Image(systemName: "gearshape")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(NumoColors.textSecondary)
-                    .frame(width: 36, height: 36)
+                // Show a temporary chip if selected tool is not in favorites (and not calculator)
+                if appState.selectedTool != .calculator && !appState.isFavorite(appState.selectedTool) {
+                    ToolChip(tool: appState.selectedTool, isSelected: true) {
+                        // Already selected — no-op
+                    }
+                    .transition(.scale.combined(with: .opacity))
+                }
+
+                // "+" button to open all tools panel
+                Button {
+                    appState.isAllToolsPanelOpen = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(NumoColors.textSecondary)
+                        .frame(width: 36, height: 36)
+                        .background(
+                            Circle()
+                                .fill(NumoColors.chipDefault)
+                        )
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
-            .padding(.trailing, NumoSpacing.sm)
+            .padding(.horizontal, NumoSpacing.sm)
+            .animation(NumoAnimations.interactiveSpring, value: appState.favoriteTools)
+            .animation(NumoAnimations.interactiveSpring, value: appState.selectedTool)
         }
     }
 
@@ -414,60 +467,6 @@ struct NumoTabView: View {
         }
     }
 
-    private func pasteFromClipboard() {
-        guard let clipString = UIPasteboard.general.string else { return }
-        // Extract numeric portion (digits, dots, minus)
-        let cleaned = clipString.filter { $0.isNumber || $0 == "." || $0 == "-" }
-        guard !cleaned.isEmpty else { return }
-
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
-
-        switch appState.selectedTool {
-        case .calculator:
-            calculatorVM.appendCharacter(cleaned)
-        case .currency:
-            currencyVM.sourceAmount = cleaned
-            currencyVM.convert()
-        case .uppercase:
-            uppercaseVM.inputAmount = cleaned
-            uppercaseVM.convert()
-        case .yoy:
-            switch activeField {
-            case .primary: yoyVM.currentValueText = cleaned
-            case .secondary: yoyVM.yoyPreviousText = cleaned
-            case .tertiary: yoyVM.momPreviousText = cleaned
-            }
-            yoyVM.calculate()
-        case .incomeTax:
-            switch activeField {
-            case .primary: incomeTaxVM.monthlySalaryText = cleaned
-            case .secondary: incomeTaxVM.specialDeductionsText = cleaned
-            default: break
-            }
-            incomeTaxVM.calculate()
-        case .date:
-            switch dateVM.mode {
-            case .difference: break
-            case .offset:
-                dateVM.offsetDays = cleaned
-                dateVM.calculateOffset()
-            case .workday:
-                dateVM.workdayCount = cleaned
-                dateVM.calculateWorkday()
-            }
-        case .unit:
-            unitVM.sourceValue = cleaned
-            unitVM.convert()
-        case .loan:
-            switch activeField {
-            case .primary: loanVM.amountText = cleaned
-            case .secondary: loanVM.annualRateText = cleaned
-            default: break
-            }
-            loanVM.calculate()
-        }
-    }
-
     private func handleUndo() {
         switch appState.selectedTool {
         case .calculator:
@@ -476,6 +475,82 @@ struct NumoTabView: View {
             // For other tools, undo clears the active field
             handleClear()
         }
+    }
+
+    // MARK: - Copy Result
+
+    private var currentCopyableResult: String? {
+        switch appState.selectedTool {
+        case .calculator:
+            let r = calculatorVM.currentResult
+            return r.isEmpty ? nil : r
+        case .currency:
+            let r = currencyVM.convertedAmount
+            return r.isEmpty ? nil : r
+        case .uppercase:
+            let r = uppercaseVM.uppercaseResult
+            return r.isEmpty ? nil : r
+        case .yoy:
+            guard let r = yoyVM.yoyResult else { return nil }
+            return ExpressionFormatter.formatSigned(r.percentageChange) + "%"
+        case .incomeTax:
+            guard let r = incomeTaxVM.result, let net = r.monthlyNetSalary.first else { return nil }
+            return ExpressionFormatter.formatCurrency(net)
+        case .date:
+            let fmt = DateFormatter()
+            fmt.dateStyle = .medium
+            switch dateVM.mode {
+            case .difference:
+                guard let r = dateVM.differenceResult else { return nil }
+                return "\(r.days) 天"
+            case .offset:
+                guard let d = dateVM.offsetResult else { return nil }
+                return fmt.string(from: d)
+            case .workday:
+                guard let d = dateVM.workdayResult else { return nil }
+                return fmt.string(from: d)
+            }
+        case .unit:
+            let r = unitVM.convertedValue
+            return r.isEmpty ? nil : r
+        case .loan:
+            guard let r = loanVM.result else { return nil }
+            return ExpressionFormatter.formatCurrency(r.monthlyPayment)
+        }
+    }
+
+    private func copyCurrentResult() {
+        guard let text = currentCopyableResult else { return }
+        UIPasteboard.general.string = text
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+
+        // Brief highlight flash
+        withAnimation(.easeOut(duration: 0.08)) { isResultHighlighted = true }
+        withAnimation(.easeIn(duration: 0.25).delay(0.12)) { isResultHighlighted = false }
+
+        // Show toast then auto-dismiss
+        showCopiedToast = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.72)) {
+                showCopiedToast = false
+            }
+        }
+    }
+
+    private var copiedToast: some View {
+        HStack(spacing: NumoSpacing.xs) {
+            Image(systemName: "checkmark")
+                .font(.system(size: 12, weight: .bold))
+            Text(String(localized: "结果已复制"))
+                .font(NumoTypography.bodySmall.weight(.semibold))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, NumoSpacing.md)
+        .padding(.vertical, NumoSpacing.xs)
+        .background(
+            Capsule()
+                .fill(Color.black.opacity(0.78))
+        )
     }
 
     private func collapseKeypad() {
@@ -592,16 +667,9 @@ struct HistorySheetView: View {
                         }
                         .foregroundStyle(NumoColors.danger)
                     } else {
-                        Button {
+                        Button(String(localized: "关闭")) {
                             dismiss()
-                        } label: {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(NumoColors.textSecondary)
-                                .frame(width: 30, height: 30)
-                                .background(Circle().fill(NumoColors.surfaceSecondary))
                         }
-                        .buttonStyle(.plain)
                     }
                 }
                 ToolbarItem(placement: .bottomBar) {
@@ -667,55 +735,6 @@ struct HistorySheetView: View {
     }
 }
 
-// MARK: - Tool Drawer
-
-struct ToolDrawerView: View {
-    @Environment(AppState.self) private var appState
-
-    private let columns = [
-        GridItem(.flexible()),
-        GridItem(.flexible()),
-    ]
-
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: NumoSpacing.md) {
-                    ForEach(Tool.allCases) { tool in
-                        Button {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.5)
-                            appState.selectTool(tool)
-                        } label: {
-                            VStack(spacing: NumoSpacing.xs) {
-                                Image(systemName: tool.icon)
-                                    .font(.system(size: 28))
-                                    .foregroundStyle(
-                                        appState.selectedTool == tool
-                                            ? NumoColors.chipSelected
-                                            : NumoColors.textSecondary
-                                    )
-                                Text(tool.displayName)
-                                    .font(NumoTypography.bodyMedium)
-                                    .foregroundStyle(NumoColors.textPrimary)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, NumoSpacing.lg)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .fill(NumoColors.surfaceSecondary)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(NumoSpacing.md)
-            }
-            .navigationTitle(String(localized: "全部工具"))
-            .navigationBarTitleDisplayMode(.inline)
-        }
-    }
-}
-
 // MARK: - Settings Sheet
 
 struct SettingsSheetView: View {
@@ -724,6 +743,40 @@ struct SettingsSheetView: View {
     var body: some View {
         NavigationStack {
             List {
+                // MARK: Favorites Management
+                Section {
+                    ForEach(appState.favoriteTools) { tool in
+                        HStack(spacing: NumoSpacing.sm) {
+                            Image(systemName: tool.icon)
+                                .font(.system(size: 16))
+                                .foregroundStyle(NumoColors.textSecondary)
+                                .frame(width: 24)
+                            Text(tool.displayName)
+                                .font(NumoTypography.bodyMedium)
+                            Spacer()
+                            if appState.favoriteTools.count > 1 {
+                                Button {
+                                    withAnimation {
+                                        appState.toggleFavorite(tool)
+                                    }
+                                } label: {
+                                    Image(systemName: "minus.circle.fill")
+                                        .foregroundStyle(NumoColors.danger)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    .onMove { source, destination in
+                        appState.moveFavorite(from: source, to: destination)
+                    }
+                } header: {
+                    Text(String(localized: "快捷工具"))
+                } footer: {
+                    Text(String(localized: "长按拖动可调整顺序"))
+                }
+
+                // MARK: Keyboard Layout
                 Section {
                     @Bindable var state = appState
                     HStack {
@@ -742,6 +795,7 @@ struct SettingsSheetView: View {
             }
             .navigationTitle(String(localized: "设置"))
             .navigationBarTitleDisplayMode(.inline)
+            .environment(\.editMode, .constant(.active))
         }
     }
 }

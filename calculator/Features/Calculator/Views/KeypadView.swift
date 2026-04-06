@@ -26,10 +26,17 @@ struct KeypadView: View {
         VStack(spacing: spacing) {
             // Row 1: C  %  ⌫  ÷
             keyRow {
-                CalcButton("C", type: .function) { onClear() }
-                CalcButton("%", type: .function) { onPercent() }
-                deleteButton
-                CalcButton("÷", type: .op) { onOperator("÷") }
+                if operatorOnRight {
+                    CalcButton("C", type: .function) { onClear() }
+                    CalcButton("%", type: .function) { onPercent() }
+                    deleteButton
+                    CalcButton("÷", type: .op) { onOperator("÷") }
+                } else {
+                    CalcButton("÷", type: .op) { onOperator("÷") }
+                    CalcButton("C", type: .function) { onClear() }
+                    CalcButton("%", type: .function) { onPercent() }
+                    deleteButton
+                }
             }
 
             // Row 2: 7  8  9  ×

@@ -218,7 +218,7 @@ private struct CalcButtonStyle: ButtonStyle {
         configuration.label
             .background(
                 Group {
-                    if type == .number || type == .function {
+                    if type == .number || type == .function || type == .op {
                         ZStack {
                             // Base dim layer
                             Circle()
