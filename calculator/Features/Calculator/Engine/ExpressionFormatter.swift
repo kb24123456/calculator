@@ -63,6 +63,15 @@ struct ExpressionFormatter {
         return "\(symbol)\(formatted)"
     }
 
+    /// Format a Decimal with explicit +/- sign prefix.
+    static func formatSigned(_ value: Decimal, maxDecimalPlaces: Int = Constants.Calculator.maxDecimalPlaces) -> String {
+        let formatted = format(value, maxDecimalPlaces: maxDecimalPlaces)
+        if value > 0 {
+            return "+\(formatted)"
+        }
+        return formatted
+    }
+
     /// Format a Decimal as percentage display.
     static func formatPercent(_ value: Decimal, decimalPlaces: Int = 2) -> String {
         let formatter = NumberFormatter()

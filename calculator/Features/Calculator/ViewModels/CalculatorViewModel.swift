@@ -12,8 +12,22 @@ import SwiftData
 final class CalculatorViewModel {
     var expressionString: String = ""
     var currentResult: String = ""
+    var previousExpression: String = ""
     var isError: Bool = false
     var errorShakeTrigger: Int = 0
+
+    /// Whether there's a state that can be undone
+    var canUndo: Bool { !undoStack.isEmpty }
+
+    // MARK: - Undo Stack
+
+    private struct CalcSnapshot {
+        let previousExpression: String
+        let currentResult: String
+        let expressionString: String
+    }
+
+    private var undoStack: [CalcSnapshot] = []
 
     /// The formatted display of the expression
     var displayExpression: String {
@@ -24,6 +38,8 @@ final class CalculatorViewModel {
 
     func appendCharacter(_ char: String) {
         guard expressionString.count < Constants.Calculator.maxExpressionLength else { return }
+
+        beginNewInput()
 
         // Prevent multiple decimal points in current number
         if char == "." {
@@ -44,6 +60,7 @@ final class CalculatorViewModel {
     }
 
     func appendOperator(_ op: String) {
+        beginNewInput()
         isError = false
 
         // If expression ends with an operator, replace it
@@ -58,6 +75,7 @@ final class CalculatorViewModel {
     }
 
     func appendParenthesis() {
+        beginNewInput()
         let openCount = expressionString.filter { $0 == "(" }.count
         let closeCount = expressionString.filter { $0 == ")" }.count
 
@@ -78,6 +96,7 @@ final class CalculatorViewModel {
 
     func deleteBackward() {
         guard !expressionString.isEmpty else { return }
+        beginNewInput()
         expressionString.removeLast()
         isError = false
     }
@@ -85,6 +104,7 @@ final class CalculatorViewModel {
     func clear() {
         expressionString = ""
         currentResult = ""
+        previousExpression = ""
         isError = false
     }
 
@@ -100,6 +120,7 @@ final class CalculatorViewModel {
     }
 
     func applyPercent() {
+        beginNewInput()
         expressionString += "%"
     }
 
@@ -110,6 +131,9 @@ final class CalculatorViewModel {
             let tokens = try ExpressionParser.parse(expressionString)
             let result = try ExpressionEvaluator.evaluate(tokens)
             let formatted = ExpressionFormatter.format(result)
+
+            // Save the expression that produced this result
+            previousExpression = expressionString
             currentResult = formatted
 
             // Save to history
@@ -130,10 +154,37 @@ final class CalculatorViewModel {
             isError = true
             errorShakeTrigger += 1
             currentResult = ""
+            previousExpression = ""
         }
     }
 
+    // MARK: - Undo
+
+    func undo() {
+        guard let snapshot = undoStack.popLast() else { return }
+        previousExpression = snapshot.previousExpression
+        currentResult = snapshot.currentResult
+        expressionString = snapshot.expressionString
+    }
+
     // MARK: - Helpers
+
+    /// Transition from result-display mode back to expression-input mode.
+    /// Saves the current result state to the undo stack so user can come back.
+    private func beginNewInput() {
+        guard !currentResult.isEmpty else { return }
+
+        // Save result state for undo
+        undoStack.append(CalcSnapshot(
+            previousExpression: previousExpression,
+            currentResult: currentResult,
+            expressionString: expressionString
+        ))
+
+        // Clear result display — switches back to expression-only mode
+        currentResult = ""
+        previousExpression = ""
+    }
 
     private func extractCurrentNumber() -> String {
         var number = ""

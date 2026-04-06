@@ -11,6 +11,7 @@ import SwiftUI
 struct IncomeTaxView: View {
     @Bindable var viewModel: IncomeTaxViewModel
     @Binding var activeField: ToolInputField
+    var onScrollCollapse: (() -> Void)?
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -120,6 +121,14 @@ struct IncomeTaxView: View {
             .padding(.top, NumoSpacing.sm)
             .padding(.horizontal, 2) // Prevent border clipping
         }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 40)
+                .onChanged { value in
+                    if value.translation.height < -40 {
+                        onScrollCollapse?()
+                    }
+                }
+        )
     }
 
     // MARK: - Tappable input field

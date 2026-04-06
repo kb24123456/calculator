@@ -78,7 +78,7 @@ struct YoYCalculatorView: View {
                     value: ExpressionFormatter.formatPercent(result.percentageChange)
                 )
 
-                Text(ExpressionFormatter.format(result.absoluteChange))
+                Text(ExpressionFormatter.formatSigned(result.absoluteChange))
                     .font(NumoTypography.bodySmall)
                     .foregroundStyle(NumoColors.textSecondary)
                     .contentTransition(.numericText())

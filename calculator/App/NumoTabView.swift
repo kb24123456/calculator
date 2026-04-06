@@ -52,8 +52,9 @@ struct NumoTabView: View {
                     onClear: handleClear,
                     onPercent: handlePercent,
                     onEquals: handleEquals,
-                    onAns: handleAns,
-                    operatorOnRight: appState.operatorOnRight
+                    onUndo: handleUndo,
+                    operatorOnRight: appState.operatorOnRight,
+                    canUndo: calculatorVM.canUndo && appState.selectedTool == .calculator
                 )
                 .frame(height: 350)
                 .padding(.horizontal, NumoSpacing.sm)
@@ -85,6 +86,11 @@ struct NumoTabView: View {
         .background(NumoColors.surface)
         .onChange(of: appState.selectedTool) { _, _ in
             activeField = .primary
+            if isKeypadCollapsed {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                    isKeypadCollapsed = false
+                }
+            }
         }
         .sheet(isPresented: Binding(
             get: { appState.isDrawerOpen },
@@ -182,13 +188,13 @@ struct NumoTabView: View {
             case .yoy:
                 YoYCalculatorView(viewModel: yoyVM, activeField: $activeField)
             case .incomeTax:
-                IncomeTaxView(viewModel: incomeTaxVM, activeField: $activeField)
+                IncomeTaxView(viewModel: incomeTaxVM, activeField: $activeField, onScrollCollapse: collapseKeypad)
             case .date:
                 DateCalculatorView(viewModel: dateVM)
             case .unit:
                 UnitConverterView(viewModel: unitVM)
             case .loan:
-                LoanCalculatorView(viewModel: loanVM, activeField: $activeField)
+                LoanCalculatorView(viewModel: loanVM, activeField: $activeField, onScrollCollapse: collapseKeypad)
             }
         }
         .transition(.toolSwitch)
@@ -462,60 +468,20 @@ struct NumoTabView: View {
         }
     }
 
-    private func handleAns() {
-        guard let lastResult = appState.lastResult else { return }
-        let resultString = ExpressionFormatter.format(lastResult).withoutGroupingSeparators
-
+    private func handleUndo() {
         switch appState.selectedTool {
         case .calculator:
-            calculatorVM.appendCharacter(resultString)
-        case .currency:
-            currencyVM.sourceAmount = resultString
-            currencyVM.convert()
-        case .uppercase:
-            uppercaseVM.inputAmount = resultString
-            uppercaseVM.convert()
-        case .yoy:
-            switch activeField {
-            case .primary:
-                yoyVM.currentValueText = resultString
-            case .secondary:
-                yoyVM.yoyPreviousText = resultString
-            case .tertiary:
-                yoyVM.momPreviousText = resultString
-            }
-            yoyVM.calculate()
-        case .incomeTax:
-            switch activeField {
-            case .primary:
-                incomeTaxVM.monthlySalaryText = resultString
-            case .secondary:
-                incomeTaxVM.specialDeductionsText = resultString
-            default: break
-            }
-            incomeTaxVM.calculate()
-        case .date:
-            switch dateVM.mode {
-            case .difference: break
-            case .offset:
-                dateVM.offsetDays = resultString
-                dateVM.calculateOffset()
-            case .workday:
-                dateVM.workdayCount = resultString
-                dateVM.calculateWorkday()
-            }
-        case .unit:
-            unitVM.sourceValue = resultString
-            unitVM.convert()
-        case .loan:
-            switch activeField {
-            case .primary:
-                loanVM.amountText = resultString
-            case .secondary:
-                loanVM.annualRateText = resultString
-            default: break
-            }
-            loanVM.calculate()
+            calculatorVM.undo()
+        default:
+            // For other tools, undo clears the active field
+            handleClear()
+        }
+    }
+
+    private func collapseKeypad() {
+        guard !isKeypadCollapsed else { return }
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+            isKeypadCollapsed = true
         }
     }
 
@@ -576,7 +542,24 @@ struct HistorySheetView: View {
                                             .frame(maxWidth: .infinity, alignment: .trailing)
                                     }
                                     .padding(.vertical, NumoSpacing.xxs)
-                                    .listRowBackground(NumoColors.surface)
+                                    .listRowSeparator(.hidden)
+                                    .listRowBackground(Color.clear)
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        Button(role: .destructive) {
+                                            modelContext.delete(record)
+                                        } label: {
+                                            Label(String(localized: "删除"), systemImage: "trash")
+                                        }
+                                    }
+                                    .swipeActions(edge: .trailing) {
+                                        Button {
+                                            UIPasteboard.general.string = record.result
+                                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                        } label: {
+                                            Label(String(localized: "复制"), systemImage: "doc.on.doc")
+                                        }
+                                        .tint(Color(uiColor: .systemGray2))
+                                    }
                                 }
                             } header: {
                                 Text(section.title)

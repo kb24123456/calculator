@@ -14,8 +14,11 @@ struct KeypadView: View {
     let onClear: () -> Void
     let onPercent: () -> Void
     let onEquals: () -> Void
-    let onAns: () -> Void
+    let onUndo: () -> Void
     var operatorOnRight: Bool = true
+    var canUndo: Bool = false
+
+    @State private var undoBounceTrigger: Int = 0
 
     private let spacing = NumoSpacing.keypadGap
 
@@ -62,10 +65,10 @@ struct KeypadView: View {
                 }
             }
 
-            // Row 5: Ans  0  .  =
+            // Row 5: Undo  0  .  =
             keyRow {
                 if operatorOnRight {
-                    CalcButton("Ans", type: .function) { onAns() }
+                    undoButton
                     CalcButton("0") { onCharacter("0") }
                     CalcButton(".", type: .function) { onCharacter(".") }
                     CalcButton("=", type: .equals) { onEquals() }
@@ -73,7 +76,7 @@ struct KeypadView: View {
                     CalcButton("=", type: .equals) { onEquals() }
                     CalcButton(".", type: .function) { onCharacter(".") }
                     CalcButton("0") { onCharacter("0") }
-                    CalcButton("Ans", type: .function) { onAns() }
+                    undoButton
                 }
             }
         }
@@ -97,6 +100,25 @@ struct KeypadView: View {
         CalcButton(c) { onCharacter(c) }
     }
 
+    // MARK: - Undo Button
+
+    private var undoButton: some View {
+        Button {
+            guard canUndo else { return }
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.8)
+            undoBounceTrigger += 1
+            onUndo()
+        } label: {
+            Image(systemName: "arrow.uturn.backward")
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle(canUndo ? NumoColors.textPrimary : NumoColors.textPrimary.opacity(0.3))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .symbolEffect(.bounce, options: .speed(1.5), value: undoBounceTrigger)
+        }
+        .buttonStyle(UndoButtonStyle())
+        .contentShape(Rectangle())
+    }
+
     // MARK: - Delete Button with long-press
 
     private var deleteButton: some View {
@@ -104,6 +126,22 @@ struct KeypadView: View {
         btn.onLongPressDelete = { onDelete() }
         btn.onLongPressClear = { onClear() }
         return btn
+    }
+}
+
+// MARK: - Undo Button Style
+
+private struct UndoButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(
+                Circle()
+                    .fill(NumoColors.keyPressHighlight)
+                    .opacity(configuration.isPressed ? 1 : 0)
+                    .animation(NumoAnimations.keyHighlight, value: configuration.isPressed)
+            )
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .animation(NumoAnimations.buttonPress, value: configuration.isPressed)
     }
 }
 
@@ -115,7 +153,8 @@ struct KeypadView: View {
         onClear: {},
         onPercent: {},
         onEquals: {},
-        onAns: {}
+        onUndo: {},
+        canUndo: true
     )
     .frame(height: 350)
     .padding()

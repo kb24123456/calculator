@@ -37,19 +37,37 @@ struct CalcButton: View {
     var body: some View {
         if label == "⌫" {
             deleteButtonContent
+        } else if type == .number {
+            numberButtonContent
         } else {
             standardButtonContent
         }
     }
 
-    // MARK: - Standard Button
+    // MARK: - Number Button (plain text + custom press highlight)
+
+    private var numberButtonContent: some View {
+        Button {
+            triggerHaptic()
+            action()
+        } label: {
+            Text(label)
+                .font(NumoTypography.keypadLarge)
+                .foregroundStyle(NumoColors.textPrimary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .buttonStyle(CalcButtonStyle(type: .number))
+        .contentShape(Rectangle())
+    }
+
+    // MARK: - Standard Button (op, function, equals)
 
     private var standardButtonContent: some View {
         Button {
             triggerHaptic()
             action()
         } label: {
-            buttonLabel
+            nonNumberLabel
         }
         .buttonStyle(CalcButtonStyle(type: type))
         .contentShape(Rectangle())
@@ -59,7 +77,7 @@ struct CalcButton: View {
 
     private var deleteButtonContent: some View {
         ZStack(alignment: .top) {
-            buttonLabel
+            nonNumberLabel
                 .contentShape(Rectangle())
                 .onTapGesture {
                     triggerHaptic()
@@ -99,10 +117,10 @@ struct CalcButton: View {
         }
     }
 
-    // MARK: - Button Label
+    // MARK: - Non-number Label
 
     @ViewBuilder
-    private var buttonLabel: some View {
+    private var nonNumberLabel: some View {
         switch type {
         case .equals:
             Text(label)
@@ -124,14 +142,7 @@ struct CalcButton: View {
                 .foregroundStyle(NumoColors.textSecondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .number:
-            Text(label)
-                .font(NumoTypography.keypadLarge)
-                .foregroundStyle(NumoColors.textPrimary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(
-                    Circle()
-                        .fill(NumoColors.keypadBackground)
-                )
+            EmptyView() // handled by numberButtonContent
         }
     }
 
@@ -198,7 +209,7 @@ struct CalcButton: View {
     }
 }
 
-// MARK: - Button Style
+// MARK: - Button Style (for non-number, non-glass keys)
 
 private struct CalcButtonStyle: ButtonStyle {
     let type: CalcButtonType
@@ -207,26 +218,28 @@ private struct CalcButtonStyle: ButtonStyle {
         configuration.label
             .background(
                 Group {
-                    if type == .number {
-                        // Number keys: darken background on press
-                        Circle()
-                            .fill(NumoColors.keyPressHighlight)
-                            .opacity(configuration.isPressed ? 1 : 0)
-                            .animation(NumoAnimations.keyHighlight, value: configuration.isPressed)
-                    } else if type == .function {
-                        Circle()
-                            .fill(NumoColors.keyPressHighlight)
-                            .opacity(configuration.isPressed ? 1 : 0)
-                            .animation(NumoAnimations.keyHighlight, value: configuration.isPressed)
+                    if type == .number || type == .function {
+                        ZStack {
+                            // Base dim layer
+                            Circle()
+                                .fill(NumoColors.keyPressHighlight)
+                            // Specular highlight — radial white glow from center
+                            Circle()
+                                .fill(
+                                    RadialGradient(
+                                        colors: [.white.opacity(0.45), .clear],
+                                        center: .init(x: 0.5, y: 0.35),
+                                        startRadius: 0,
+                                        endRadius: 28
+                                    )
+                                )
+                        }
+                        .opacity(configuration.isPressed ? 1 : 0)
+                        .animation(NumoAnimations.keyHighlight, value: configuration.isPressed)
                     }
                 }
             )
-            .scaleEffect(
-                (type == .op || type == .equals) && configuration.isPressed ? 0.92 : 1.0
-            )
-            .scaleEffect(
-                (type == .number || type == .function) && configuration.isPressed ? 0.95 : 1.0
-            )
+            .scaleEffect(configuration.isPressed ? 0.88 : 1.0)
             .animation(NumoAnimations.buttonPress, value: configuration.isPressed)
     }
 }

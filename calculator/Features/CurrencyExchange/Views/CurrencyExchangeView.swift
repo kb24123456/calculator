@@ -12,19 +12,17 @@ struct CurrencyExchangeView: View {
     @Bindable var viewModel: CurrencyExchangeViewModel
 
     @Namespace private var swapAnimation
-    @State private var isSwapped = false
     @State private var swapRotation: Double = 0
 
     var body: some View {
         VStack(spacing: 0) {
             Spacer()
 
-            // Source section
+            // Source section — always shows viewModel.sourceCurrency
             currencySection(
-                currency: isSwapped ? viewModel.targetCurrency : viewModel.sourceCurrency,
+                currency: viewModel.sourceCurrency,
                 amount: viewModel.sourceAmount.isEmpty ? "0" : viewModel.sourceAmount,
                 isSource: true,
-                matchedId: isSwapped ? "target" : "source",
                 onSelect: { selected in
                     viewModel.sourceCurrency = selected
                     viewModel.convert()
@@ -35,12 +33,11 @@ struct CurrencyExchangeView: View {
             swapButton
                 .padding(.vertical, NumoSpacing.sm)
 
-            // Target section
+            // Target section — always shows viewModel.targetCurrency
             currencySection(
-                currency: isSwapped ? viewModel.sourceCurrency : viewModel.targetCurrency,
+                currency: viewModel.targetCurrency,
                 amount: viewModel.convertedAmount.isEmpty ? "0" : viewModel.convertedAmount,
                 isSource: false,
-                matchedId: isSwapped ? "source" : "target",
                 onSelect: { selected in
                     viewModel.targetCurrency = selected
                     viewModel.convert()
@@ -79,12 +76,11 @@ struct CurrencyExchangeView: View {
         currency: CurrencyInfo,
         amount: String,
         isSource: Bool,
-        matchedId: String,
         onSelect: @escaping (CurrencyInfo) -> Void
     ) -> some View {
         VStack(alignment: .leading, spacing: NumoSpacing.xs) {
             currencyPill(currency: currency, onSelect: onSelect)
-                .matchedGeometryEffect(id: matchedId, in: swapAnimation)
+                .matchedGeometryEffect(id: currency.code, in: swapAnimation)
 
             Text(amount)
                 .font(NumoTypography.monoDisplayLarge)
@@ -105,10 +101,9 @@ struct CurrencyExchangeView: View {
             Button {
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.8)
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                    isSwapped.toggle()
+                    viewModel.swapCurrencies()
                     swapRotation += 180
                 }
-                viewModel.swapCurrencies()
             } label: {
                 Image(systemName: "arrow.up.arrow.down")
                     .font(.system(size: 16, weight: .semibold))
@@ -199,19 +194,23 @@ struct CurrencyExchangeView: View {
                     .frame(width: 36, height: 36)
                     .background(Circle().fill(NumoColors.surfaceSecondary))
                     .clipShape(Circle())
+                    .contentTransition(.numericText())
 
                 Text("\(currency.symbol) \(currency.code)")
                     .font(NumoTypography.bodyMedium.weight(.medium))
                     .foregroundStyle(NumoColors.textPrimary)
+                    .contentTransition(.numericText())
 
                 Text(currency.localizedName)
                     .font(NumoTypography.bodySmall)
                     .foregroundStyle(NumoColors.textSecondary)
+                    .contentTransition(.numericText())
 
                 Image(systemName: "chevron.down")
                     .font(.system(size: 9, weight: .semibold))
                     .foregroundStyle(NumoColors.textTertiary)
             }
+            .animation(.spring(response: 0.4, dampingFraction: 0.7), value: currency.code)
             .padding(.horizontal, NumoSpacing.sm)
             .padding(.vertical, NumoSpacing.xs)
             .background(

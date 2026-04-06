@@ -14,14 +14,15 @@ struct ExpressionDisplayView: View {
         VStack(alignment: .trailing, spacing: NumoSpacing.xs) {
             Spacer()
 
-            // Previous expression (shown after = is pressed and result exists)
+            // After = is pressed: show expression on top, result on bottom
             if !viewModel.currentResult.isEmpty && !viewModel.isError {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    Text(viewModel.displayExpression)
+                    Text(viewModel.previousExpression.isEmpty ? viewModel.displayExpression : viewModel.previousExpression)
                         .font(NumoTypography.monoDisplayMedium)
                         .foregroundStyle(NumoColors.textSecondary)
                         .lineLimit(1)
                         .frame(maxWidth: .infinity, alignment: .trailing)
+                        .contentTransition(.numericText())
                 }
                 .defaultScrollAnchor(.trailing)
 
@@ -34,7 +35,7 @@ struct ExpressionDisplayView: View {
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .transition(.opacity)
             } else {
-                // Expression only (during input)
+                // During input: expression only
                 ScrollView(.horizontal, showsIndicators: false) {
                     Text(viewModel.displayExpression)
                         .font(NumoTypography.monoDisplayLarge)
