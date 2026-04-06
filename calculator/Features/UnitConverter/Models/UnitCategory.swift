@@ -26,6 +26,26 @@ enum UnitCategory: String, CaseIterable, Identifiable {
         }
     }
 
+    var hudTitle: String {
+        switch self {
+        case .area: String(localized: "面积换算")
+        case .weight: String(localized: "重量换算")
+        case .length: String(localized: "长度换算")
+        case .dataStorage: String(localized: "数据换算")
+        case .temperature: String(localized: "温度换算")
+        }
+    }
+
+    var sfSymbol: String {
+        switch self {
+        case .length: "ruler"
+        case .weight: "scalemass"
+        case .area: "square.on.square"
+        case .temperature: "thermometer.medium"
+        case .dataStorage: "internaldrive"
+        }
+    }
+
     var units: [UnitDefinition] {
         switch self {
         case .area: UnitDefinition.areaUnits

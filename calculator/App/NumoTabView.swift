@@ -30,6 +30,7 @@ struct NumoTabView: View {
     @State private var isKeypadCollapsed = false
     @State private var isResultHighlighted = false
     @State private var isToastVisible = false
+    @State private var isUnitPickerExpanded = false
 
     var body: some View {
         NavigationStack {
@@ -125,6 +126,7 @@ struct NumoTabView: View {
         }
         .onChange(of: appState.selectedTool) { _, _ in
             activeField = .primary
+            isUnitPickerExpanded = false
             if isKeypadCollapsed {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                     isKeypadCollapsed = false
@@ -155,16 +157,16 @@ struct NumoTabView: View {
 
     // MARK: - NavigationBar Principal (HUD + Toast 合层)
 
-    // Toast 直接在 toolbar 里渲染，天然和两侧按钮垂直居中，无需任何坐标计算
+    // 不使用隐式 .animation(value:)，所有动画通过 withAnimation {} 显式驱动，
+    // 避免动画上下文泄漏到 Menu label 导致收起时文字跳动。
     @ViewBuilder
     private var principalArea: some View {
         ZStack {
-            // 底层：汇率 HUD（仅汇率页可见）
+            // 底层：汇率 HUD / 单位 HUD（toast 显示时淡出）
             hudContent
                 .opacity(isToastVisible ? 0 : 1)
-                .animation(.easeOut(duration: 0.12), value: isToastVisible)
 
-            // 顶层：复制 Toast
+            // 顶层：复制 Toast（无隐式 animation 修饰符）
             HStack(spacing: NumoSpacing.xs) {
                 Image(systemName: "checkmark")
                     .font(.system(size: 13, weight: .bold))
@@ -175,16 +177,9 @@ struct NumoTabView: View {
             .padding(.horizontal, NumoSpacing.lg)
             .padding(.vertical, NumoSpacing.sm)
             .glassEffect(in: Capsule())
-            // offset + scale + opacity: 纯 GPU 变换，跑满 120Hz
             .offset(y: isToastVisible ? 0 : -20)
             .scaleEffect(isToastVisible ? 1 : 0.75)
             .opacity(isToastVisible ? 1 : 0)
-            .animation(
-                isToastVisible
-                    ? .spring(response: 0.36, dampingFraction: 0.68)
-                    : .spring(response: 0.24, dampingFraction: 0.86),
-                value: isToastVisible
-            )
         }
     }
 
@@ -204,6 +199,74 @@ struct NumoTabView: View {
             }
             .multilineTextAlignment(.center)
             .transition(.push(from: .bottom).combined(with: .opacity))
+
+        case .unit:
+            ZStack {
+                // ── 收起态：分类名 + chevron ──
+                Button { isUnitPickerExpanded = true } label: {
+                    HStack(spacing: 4) {
+                        Text(unitVM.selectedCategory.displayName)
+                            .font(.subheadline.weight(.semibold))
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 9, weight: .semibold))
+                    }
+                    .foregroundStyle(.primary)
+                }
+                .buttonStyle(.plain)
+                .allowsHitTesting(!isUnitPickerExpanded)
+                .opacity(isUnitPickerExpanded ? 0 : 1)
+                .scaleEffect(isUnitPickerExpanded ? 0.82 : 1)
+                .blur(radius: isUnitPickerExpanded ? 3 : 0)
+                .animation(
+                    isUnitPickerExpanded
+                        ? .spring(response: 0.22, dampingFraction: 0.90)           // 快速退场
+                        : .spring(response: 0.44, dampingFraction: 0.82).delay(0.12), // 等选项收完再出现
+                    value: isUnitPickerExpanded
+                )
+
+                // ── 展开态：五个分类等分铺满 principal 宽度 ──
+                // allCases 顺序：面积(0) 重量(1) 长度(2，中心) 数据(3) 温度(4)
+                // frame(maxWidth: .infinity) 使 HStack 撑满 principal，
+                // 每个 item 再 maxWidth .infinity 等分，形成与两侧按钮视觉等距的 7 元素布局
+                HStack(spacing: 0) {
+                    ForEach(Array(UnitCategory.allCases.enumerated()), id: \.element.id) { index, category in
+                        let distance   = abs(index - 2)
+                        let isSelected = unitVM.selectedCategory == category
+                        let xDir: CGFloat = index < 2 ? 1 : (index > 2 ? -1 : 0)
+                        let xMag: CGFloat = CGFloat(distance) * 8
+                        let entryDelay = Double(distance) * 0.065
+                        let exitDelay  = Double(2 - distance) * 0.055
+
+                        Button {
+                            if !isSelected { unitVM.selectCategory(category) }
+                            isUnitPickerExpanded = false
+                        } label: {
+                            Text(category.displayName)
+                                .font(.system(size: 15,
+                                              weight: isSelected ? .semibold : .regular,
+                                              design: .rounded))
+                                .foregroundStyle(isSelected ? Color.primary : Color.secondary)
+                                .frame(maxWidth: .infinity)  // 等分宽度
+                                .padding(.vertical, 6)
+                        }
+                        .buttonStyle(.plain)
+                        .allowsHitTesting(isUnitPickerExpanded)
+                        .opacity(isUnitPickerExpanded ? 1 : 0)
+                        .scaleEffect(isUnitPickerExpanded ? 1 : 0.62)
+                        .offset(x: isUnitPickerExpanded ? 0 : xDir * xMag,
+                                y: isUnitPickerExpanded ? 0 : 6)
+                        .animation(
+                            isUnitPickerExpanded
+                                ? .spring(response: 0.52, dampingFraction: 0.68).delay(entryDelay)
+                                : .spring(response: 0.26, dampingFraction: 0.90).delay(exitDelay),
+                            value: isUnitPickerExpanded
+                        )
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .transition(.opacity)
+
         default:
             Color.clear
                 .frame(width: 1, height: 1)
@@ -553,10 +616,14 @@ struct NumoTabView: View {
         withAnimation(.easeOut(duration: 0.08)) { isResultHighlighted = true }
         withAnimation(.easeIn(duration: 0.25).delay(0.12)) { isResultHighlighted = false }
 
-        // Glass toast
-        isToastVisible = true
+        // Toast 显示/隐藏：用显式 withAnimation 驱动，不污染全局动画上下文
+        withAnimation(.spring(response: 0.36, dampingFraction: 0.68)) {
+            isToastVisible = true
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
-            isToastVisible = false
+            withAnimation(.spring(response: 0.24, dampingFraction: 0.86)) {
+                isToastVisible = false
+            }
         }
     }
 
@@ -806,6 +873,7 @@ struct SettingsSheetView: View {
         }
     }
 }
+
 
 #Preview {
     NumoTabView()
