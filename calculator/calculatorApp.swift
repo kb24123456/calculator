@@ -10,9 +10,13 @@ import SwiftData
 
 @main
 struct calculatorApp: App {
+    @State private var appState = AppState()
+    @State private var hapticService = HapticService()
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            CalculationRecord.self,
+            ExchangeRate.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
@@ -25,7 +29,9 @@ struct calculatorApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            NumoTabView()
+                .environment(appState)
+                .environment(hapticService)
         }
         .modelContainer(sharedModelContainer)
     }

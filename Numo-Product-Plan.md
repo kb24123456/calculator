@@ -29,14 +29,22 @@ v1 中英双语（en + zh-Hans），使用 Xcode String Catalogs。
 ### 2.1 核心布局
 ```
 ┌─────────────────────────────────────┐
-│  表达式区域（可编辑，显示完整算式+结果）   │
-│  1,200 × 0.8 + 500 = 1,460          │
+│ [计算器] [汇率] [大写] [同比] [个税] [▸] │  ← 顶部胶囊Chip(横向滚动)
 ├─────────────────────────────────────┤
-│ [计算器] [汇率] [大写] [同比] [个税] [▸] │  ← 顶部工具栏(横向滚动)
+│                                     │
+│         1,200 × 0.8 + 500           │  ← 表达式(较小辅助字体)
+│              1,460                  │  ← 结果(超大主角字体)
+│                                     │
 ├─────────────────────────────────────┤
 │                                     │
 │   下方区域随工具选择整体变形             │
-│   默认=计算器键盘  汇率=货币选择+输入     │
+│   默认=浮动文字键盘  汇率=货币选择       │
+│                                     │
+│   C    %    ⌫    ÷                  │  ← 运算符为暗红色文字
+│   7    8    9    ×                  │  ← 数字为纯文字无背景
+│   4    5    6    -                  │
+│   1    2    3    +                  │
+│   00   0    .   [=]                 │  ← 等号为暗红实心胶囊按钮
 │                                     │
 ├─────────────────────────────────────┤
 │   ↑ 上滑抽屉查看更多工具               │
@@ -45,12 +53,12 @@ v1 中英双语（en + zh-Hans），使用 Xcode String Catalogs。
 
 ### 2.2 导航模型
 - **不使用** NavigationStack/TabView，整个 App 是单屏变形器
-- 选择工具 chip → 下方内容区 cross-fade 切换
+- 选择顶部胶囊 Chip → 下方内容区 cross-fade 切换
 - 次级页面（历史、货币选择器）使用 `.sheet()` 弹出
 - 抽屉使用 `.sheet(detents: [.fraction(0.4), .large])`
 
 ### 2.3 结果流转
-手动模式：算出结果后，用户点击其他工具 chip，工具的输入框自动预填 `AppState.lastResult`，用户可清空重新输入。
+手动模式：算出结果后，用户点击其他工具 Chip，工具的输入框自动预填 `AppState.lastResult`，用户可清空重新输入。
 
 ---
 
@@ -111,10 +119,18 @@ v1 中英双语（en + zh-Hans），使用 Xcode String Catalogs。
 
 ## 4. 设计系统
 
+> **视觉基调来源：** Dribbble 参考图分析（用户确认）
+> - 无背景浮动文字按键（参考图1/图3风格）
+> - 顶部工具导航用轻量文字 Tab + 下划线选中态（参考图2/图3）
+> - 表达式区：结果超大 + 算式辅助显示（所有参考图共性）
+> - 汇率页：国旗 pill chip + 上下排列 + swap 按钮（参考图4）
+
 ### 4.1 色彩
-**浅色模式：** Surface=#FFF, Secondary=#F2F2F7, Text=#000, 按键白色, 等号键黑底白字, chip选中黑底白字
-**深色模式：** Surface=#000, Secondary=#1C1C1E, Text=#FFF, 按键#333, 等号键白底黑字, chip选中白底黑字
+**强调色：** 克制的暗红色点缀 Accent ~#C44040，仅用于等号键、运算符文字、选中态下划线等极少数场景
+**浅色模式：** Surface=#FFFFFF, Secondary=#F2F2F7, TextPrimary=#000000, TextSecondary=#3C3C43/60%, 数字键=纯文字无背景, 运算符=Accent色文字
+**深色模式：** Surface=#000000, Secondary=#1C1C1E, TextPrimary=#FFFFFF, TextSecondary=#EBEBF5/60%, 数字键=纯文字无背景, 运算符=Accent色文字
 **语义色：** Success=#34C759, Danger=#FF3B30, Warning=#FF9500
+**主题模式：** 跟随系统（不设默认偏好）
 
 ### 4.2 字体
 San Francisco 系统字体Rounded，数字结果使用 `.monospacedDigit` 防止布局跳动：
@@ -126,21 +142,24 @@ San Francisco 系统字体Rounded，数字结果使用 `.monospacedDigit` 防止
 
 ### 4.3 间距
 4pt 网格：xxs=4, xs=8, sm=12, md=16, lg=20, xl=24, xxl=32
-屏幕水平内边距=16pt，按键间距=8pt，chip间距=8pt
+屏幕水平内边距=16pt，按键间距=8pt，工具Tab间距=24pt
 
 ### 4.4 组件库
-- **CalcButton:** 圆角12pt, 按下缩放0.92 spring动画, 轻触感反馈
-- **ToolChip:** 胶囊形(h=36pt, r=18pt), 选中态动画0.25s
+- **CalcButton（数字键）:** 无背景无边框，纯浮动文字，按下时短暂出现微弱圆形背景(opacity 0.1)反馈后消失，触感反馈
+- **CalcButton（运算符）:** 无背景，Accent色(暗红)文字，按下缩放0.92
+- **CalcButton（等号）:** 胶囊形/圆角矩形 Accent色(暗红)实心背景 + 白色文字，最突出的按键
+- **ToolChip:** 胶囊形(h=36pt, r=18pt)，选中态=Accent色(暗红)背景+白色文字，未选中=SurfaceSecondary背景+TextSecondary文字，切换动画0.25s
 - **NumoCard:** 圆角16pt, SurfaceSecondary背景, 无阴影(扁平)
 - **NumoTextField:** h=48pt, 圆角12pt, 数字输入右对齐
 - **ResultBanner:** 点击复制(勾选动画+成功触感), 长按分享
 
 ### 4.5 动画
 - 工具切换：出场 fade+下移8pt(0.2s) → 入场 fade+上移8pt(0.25s)
-- 按键按下：scale 1→0.92→1, spring(0.2, 0.6)
+- 按键按下（数字键）：短暂出现圆形背景 fade in/out 0.15s
+- 按键按下（运算符/等号）：scale 1→0.92→1, spring(0.2, 0.6)
 - 错误：水平抖动 3次 0.4s
 - 抽屉：标准 SwiftUI sheet
-- 数字变化：原生contenttransition
+- 数字变化：原生 .contentTransition(.numericText())
 
 ### 4.6 触感反馈
 | 事件 | 类型 | 强度 |

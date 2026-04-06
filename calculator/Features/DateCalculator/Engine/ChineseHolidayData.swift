@@ -1,0 +1,54 @@
+//
+//  ChineseHolidayData.swift
+//  calculator
+//
+//  Created by 廖云丰 on 2026/4/6.
+//
+
+import Foundation
+
+struct YearHolidayData {
+    let holidays: Set<String>           // dates that are official holidays (non-working)
+    let compensatoryWorkdays: Set<String>  // weekend dates that are compensatory workdays (调休)
+}
+
+struct ChineseHolidayData {
+    /// Returns holiday data for a given year. Falls back to empty data if year is not available.
+    static func holidays(for year: Int) -> YearHolidayData {
+        data[year] ?? YearHolidayData(holidays: [], compensatoryWorkdays: [])
+    }
+
+    static let data: [Int: YearHolidayData] = [
+        2025: YearHolidayData(
+            holidays: Set([
+                "2025-01-01",
+                "2025-01-28", "2025-01-29", "2025-01-30", "2025-01-31", "2025-02-01", "2025-02-02", "2025-02-03", "2025-02-04",
+                "2025-04-04", "2025-04-05", "2025-04-06",
+                "2025-05-01", "2025-05-02", "2025-05-03", "2025-05-04", "2025-05-05",
+                "2025-05-31", "2025-06-01", "2025-06-02",
+                "2025-10-01", "2025-10-02", "2025-10-03", "2025-10-04", "2025-10-05", "2025-10-06", "2025-10-07", "2025-10-08",
+            ]),
+            compensatoryWorkdays: Set([
+                "2025-01-26", "2025-02-08",
+                "2025-04-27",
+                "2025-09-28", "2025-10-11",
+            ])
+        ),
+        2026: YearHolidayData(
+            holidays: Set([
+                "2026-01-01", "2026-01-02", "2026-01-03",
+                "2026-02-15", "2026-02-16", "2026-02-17", "2026-02-18", "2026-02-19", "2026-02-20", "2026-02-21",
+                "2026-04-05", "2026-04-06", "2026-04-07",
+                "2026-05-01", "2026-05-02", "2026-05-03",
+                "2026-06-19", "2026-06-20", "2026-06-21",
+                "2026-10-01", "2026-10-02", "2026-10-03", "2026-10-04", "2026-10-05", "2026-10-06", "2026-10-07",
+            ]),
+            compensatoryWorkdays: Set([
+                "2026-02-14", "2026-02-22",
+                "2026-05-09",
+                "2026-06-28",
+                "2026-10-10",
+            ])
+        ),
+    ]
+}
