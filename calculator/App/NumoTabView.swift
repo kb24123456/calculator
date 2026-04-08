@@ -31,7 +31,7 @@ struct NumoTabView: View {
     @State private var copyScale: CGFloat = 1.0
     @State private var isToastVisible = false
     @State private var isUnitPickerExpanded = false
-    @State private var isLoanMethodExpanded = false
+    @State private var isDateModeExpanded   = false
 
     var body: some View {
         NavigationStack {
@@ -122,15 +122,12 @@ struct NumoTabView: View {
         .onChange(of: appState.selectedTool) { _, _ in
             activeField = .primary
             isUnitPickerExpanded = false
-            isLoanMethodExpanded = false
+            isDateModeExpanded   = false
             if isKeypadCollapsed {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                     isKeypadCollapsed = false
                 }
             }
-        }
-        .onChange(of: loanVM.isShowingHero) { _, isHero in
-            if isHero { isLoanMethodExpanded = false }
         }
         .sheet(isPresented: Binding(
             get: { appState.isAllToolsPanelOpen },
@@ -319,13 +316,26 @@ struct NumoTabView: View {
                 .transition(.push(from: .bottom).combined(with: .opacity))
 
         case .loan:
-            let hudWidth = UIScreen.main.bounds.width - 88
+            Button { loanVM.showSchedule = true } label: {
+                HStack(spacing: 4) {
+                    Text("还款明细")
+                        .font(.subheadline.weight(.semibold))
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(Color.secondary.opacity(0.45))
+                }
+                .foregroundStyle(loanVM.result != nil ? Color.primary : Color.secondary.opacity(0.35))
+            }
+            .buttonStyle(.plain)
+            .disabled(loanVM.result == nil)
+            .transition(.push(from: .bottom).combined(with: .opacity))
+
+        case .date:
             ZStack {
-                // ── Layer 1: Collapsed — current method + chevron ──
-                Button { isLoanMethodExpanded = true } label: {
+                // ── 收起态：当前模式名 + chevron ──
+                Button { isDateModeExpanded = true } label: {
                     HStack(spacing: 4) {
-                        Text(loanVM.method == .equalInstallment ? "等额本息" :
-                             loanVM.method == .equalPrincipal   ? "等额本金" : "先息后本")
+                        Text(dateModeName(dateVM.mode))
                             .font(.subheadline.weight(.semibold))
                         Image(systemName: "chevron.down")
                             .font(.system(size: 9, weight: .semibold))
@@ -333,59 +343,59 @@ struct NumoTabView: View {
                     .foregroundStyle(.primary)
                 }
                 .buttonStyle(.plain)
-                .allowsHitTesting(!isLoanMethodExpanded)
-                .opacity(!isLoanMethodExpanded ? 1 : 0)
-                .scaleEffect(!isLoanMethodExpanded ? 1 : 0.82)
-                .blur(radius: !isLoanMethodExpanded ? 0 : 3)
+                .allowsHitTesting(!isDateModeExpanded)
+                .opacity(isDateModeExpanded ? 0 : 1)
+                .scaleEffect(isDateModeExpanded ? 0.82 : 1)
+                .blur(radius: isDateModeExpanded ? 3 : 0)
                 .animation(
-                    isLoanMethodExpanded
+                    isDateModeExpanded
                         ? .spring(response: 0.22, dampingFraction: 0.90)
                         : .spring(response: 0.44, dampingFraction: 0.82).delay(0.12),
-                    value: isLoanMethodExpanded
+                    value: isDateModeExpanded
                 )
 
-                // ── Layer 2: Expanded — 3 method options (cascade) ──
+                // ── 展开态：3 个模式等分 ──
+                let hudWidth = UIScreen.main.bounds.width - 88
                 HStack(spacing: 0) {
-                    ForEach(Array(RepaymentMethod.allCases.enumerated()), id: \.offset) { index, m in
+                    ForEach(Array(DateCalcMode.allCases.enumerated()), id: \.offset) { index, mode in
                         let distance   = abs(index - 1)
+                        let isSelected = dateVM.mode == mode
                         let xDir: CGFloat = index < 1 ? 1 : (index > 1 ? -1 : 0)
-                        let xMag: CGFloat = CGFloat(distance) * 8
+                        let xMag: CGFloat = CGFloat(distance) * 10
                         let entryDelay = Double(distance) * 0.065
                         let exitDelay  = Double(1 - distance) * 0.055
 
                         Spacer(minLength: 0)
+
                         Button {
-                            if loanVM.method != m {
-                                loanVM.method = m
-                                loanVM.calculate()
-                            }
-                            isLoanMethodExpanded = false
+                            if !isSelected { dateVM.mode = mode }
+                            isDateModeExpanded = false
                         } label: {
-                            Text(m == .equalInstallment ? "等额本息" :
-                                 m == .equalPrincipal   ? "等额本金" : "先息后本")
+                            Text(dateModeName(mode))
                                 .font(.system(size: 15,
-                                              weight: loanVM.method == m ? .semibold : .regular,
+                                              weight: isSelected ? .semibold : .regular,
                                               design: .rounded))
-                                .foregroundStyle(loanVM.method == m ? Color.primary : Color.secondary)
+                                .foregroundStyle(isSelected ? Color.primary : Color.secondary)
                                 .padding(.vertical, 6)
                         }
                         .buttonStyle(.plain)
-                        .allowsHitTesting(isLoanMethodExpanded)
-                        .opacity(isLoanMethodExpanded ? 1 : 0)
-                        .scaleEffect(isLoanMethodExpanded ? 1 : 0.62)
-                        .offset(x: isLoanMethodExpanded ? 0 : xDir * xMag, y: isLoanMethodExpanded ? 0 : 6)
+                        .allowsHitTesting(isDateModeExpanded)
+                        .opacity(isDateModeExpanded ? 1 : 0)
+                        .scaleEffect(isDateModeExpanded ? 1 : 0.62)
+                        .offset(x: isDateModeExpanded ? 0 : xDir * xMag,
+                                y: isDateModeExpanded ? 0 : 6)
                         .animation(
-                            isLoanMethodExpanded
+                            isDateModeExpanded
                                 ? .spring(response: 0.52, dampingFraction: 0.68).delay(entryDelay)
                                 : .spring(response: 0.26, dampingFraction: 0.90).delay(exitDelay),
-                            value: isLoanMethodExpanded
+                            value: isDateModeExpanded
                         )
                     }
                     Spacer(minLength: 0)
                 }
                 .frame(width: hudWidth)
             }
-            .transition(.push(from: .bottom).combined(with: .opacity))
+            .transition(.opacity)
 
         default:
             Color.clear
@@ -763,6 +773,14 @@ struct NumoTabView: View {
 
     private func deleteLastDigit(from value: inout String) {
         if !value.isEmpty { value.removeLast() }
+    }
+
+    private func dateModeName(_ mode: DateCalcMode) -> String {
+        switch mode {
+        case .difference: return "日期间隔"
+        case .offset:     return "日期推算"
+        case .workday:    return "工作日"
+        }
     }
 }
 

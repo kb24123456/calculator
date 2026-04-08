@@ -26,7 +26,6 @@ final class DateCalculatorViewModel {
     var workdayStartDate: Date = .now
     var workdayCount: String = ""
     var workdayForward: Bool = true
-    var includeHolidays: Bool = true
     var workdayResult: Date?
     var workdayCalendarDays: Int = 0
     var workdaySkippedDays: Int = 0
@@ -61,7 +60,7 @@ final class DateCalculatorViewModel {
             from: workdayStartDate,
             count: count,
             forward: workdayForward,
-            includeHolidays: includeHolidays
+            includeHolidays: true
         )
         workdayResult = result.resultDate
         workdayCalendarDays = result.calendarDays
