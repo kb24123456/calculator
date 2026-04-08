@@ -14,7 +14,7 @@ enum NumoColors {
                                   dark: .init(red: 0.84, green: 0.32, blue: 0.32))
 
     // MARK: - Surface
-    static let surface = Color(light: .white, dark: .black)
+    static let surface = Color(light: .white, dark: .init(red: 0.07, green: 0.07, blue: 0.08))
     static let surfaceSecondary = Color(light: .init(red: 0.95, green: 0.95, blue: 0.97),
                                          dark: .init(red: 0.11, green: 0.11, blue: 0.12))
 
