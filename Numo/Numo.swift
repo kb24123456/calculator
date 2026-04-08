@@ -135,7 +135,7 @@ struct GoldPriceWidget: Widget {
         }
         .configurationDisplayName("金价")
         .description("实时黄金价格（元/克）")
-        .supportedFamilies([.systemSmall])
+        .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
 
@@ -248,7 +248,7 @@ struct CurrencyPairWidget: Widget {
         }
         .configurationDisplayName("汇率")
         .description("实时货币汇率")
-        .supportedFamilies([.systemSmall])
+        .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
 

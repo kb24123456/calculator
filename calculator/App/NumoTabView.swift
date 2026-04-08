@@ -128,22 +128,11 @@ struct NumoTabView: View {
                     principalArea
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack(spacing: NumoSpacing.md) {
-                        Button {
-                            shareCurrentResult()
-                        } label: {
-                            Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 15, weight: .medium))
-                        }
-                        .opacity(currentCopyableResult != nil ? 1 : 0.3)
-                        .disabled(currentCopyableResult == nil)
-
-                        Button {
-                            showSettings = true
-                        } label: {
-                            Image(systemName: "line.3.horizontal")
-                                .font(.system(size: 16, weight: .medium))
-                        }
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "line.3.horizontal")
+                            .font(.system(size: 16, weight: .medium))
                     }
                 }
             }
@@ -205,14 +194,32 @@ struct NumoTabView: View {
             hudContent
                 .opacity(isToastVisible ? 0 : 1)
 
-            // 顶层：复制 Toast（无隐式 animation 修饰符）
-            HStack(spacing: NumoSpacing.xs) {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 13, weight: .bold))
-                Text(String(localized: "结果已复制"))
-                    .font(.system(size: 15, weight: .medium, design: .rounded))
+            // 顶层：复制 Toast + 分享按钮（无隐式 animation 修饰符）
+            HStack(spacing: 0) {
+                HStack(spacing: NumoSpacing.xs) {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 13, weight: .bold))
+                    Text(String(localized: "结果已复制"))
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                }
+                .foregroundStyle(.primary)
+
+                // Divider
+                Rectangle()
+                    .fill(.primary.opacity(0.15))
+                    .frame(width: 1, height: 16)
+                    .padding(.horizontal, NumoSpacing.sm)
+
+                // Share button
+                Button {
+                    shareCurrentResult()
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.primary)
+                }
+                .buttonStyle(.plain)
             }
-            .foregroundStyle(.primary)
             .padding(.horizontal, NumoSpacing.lg)
             .padding(.vertical, NumoSpacing.sm)
             .glassEffect(in: Capsule())
@@ -888,7 +895,7 @@ struct NumoTabView: View {
         withAnimation(.spring(response: 0.36, dampingFraction: 0.68)) {
             isToastVisible = true
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
             withAnimation(.spring(response: 0.24, dampingFraction: 0.86)) {
                 isToastVisible = false
             }

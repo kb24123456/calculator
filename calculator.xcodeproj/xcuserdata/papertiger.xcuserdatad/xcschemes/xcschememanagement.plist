@@ -4,10 +4,38 @@
 <dict>
 	<key>SchemeUserState</key>
 	<dict>
+		<key>NumoExtension.xcscheme_^#shared#^_</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>1</integer>
+		</dict>
 		<key>calculator.xcscheme_^#shared#^_</key>
 		<dict>
 			<key>orderHint</key>
 			<integer>0</integer>
+		</dict>
+	</dict>
+	<key>SuppressBuildableAutocreation</key>
+	<dict>
+		<key>120089272F82DA9100C157C2</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>120089382F82DA9100C157C2</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>120089422F82DA9100C157C2</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>12CDF9E32F86CFB6003E0CF1</key>
+		<dict>
+			<key>primary</key>
+			<true/>
 		</dict>
 	</dict>
 </dict>

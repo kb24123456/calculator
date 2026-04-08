@@ -13,8 +13,18 @@ struct NumoApp: App {
     @State private var appState = AppState()
     @State private var hapticService = HapticService()
     @State private var settingsStore = SettingsStore()
+    @AppStorage("numo_theme") private var themeRaw: String = "system"
     @AppStorage("numo_has_seen_onboarding") private var hasSeenOnboarding = false
     @State private var showOnboarding = false
+
+    /// Derived directly from @AppStorage so SwiftUI reacts immediately to theme changes
+    private var colorSchemeForTheme: ColorScheme? {
+        switch themeRaw {
+        case "light": .light
+        case "dark": .dark
+        default: nil
+        }
+    }
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
@@ -44,7 +54,7 @@ struct NumoApp: App {
                         .zIndex(1)
                 }
             }
-            .preferredColorScheme(settingsStore.preferredColorScheme)
+            .preferredColorScheme(colorSchemeForTheme)
             .onAppear {
                 if !hasSeenOnboarding {
                     showOnboarding = true
