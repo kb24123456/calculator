@@ -9,10 +9,9 @@ import WidgetKit
 import SwiftUI
 
 @main
-struct NumoBundle: WidgetBundle {
+struct NumoWidgetBundle: WidgetBundle {
     var body: some Widget {
-        Numo()
-        NumoControl()
-        NumoLiveActivity()
+        GoldPriceWidget()
+        CurrencyPairWidget()
     }
 }

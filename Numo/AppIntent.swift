@@ -8,11 +8,22 @@
 import WidgetKit
 import AppIntents
 
-struct ConfigurationAppIntent: WidgetConfigurationIntent {
-    static var title: LocalizedStringResource { "Configuration" }
-    static var description: IntentDescription { "This is an example widget." }
+// MARK: - Gold Price Widget (no configuration needed)
 
-    // An example configurable parameter.
-    @Parameter(title: "Favorite Emoji", default: "😃")
-    var favoriteEmoji: String
+struct GoldPriceIntent: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource { "金价" }
+    static var description: IntentDescription { "显示实时黄金价格" }
+}
+
+// MARK: - Currency Pair Widget
+
+struct CurrencyPairIntent: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource { "汇率" }
+    static var description: IntentDescription { "显示货币汇率" }
+
+    @Parameter(title: "源货币", default: "USD")
+    var sourceCurrency: String
+
+    @Parameter(title: "目标货币", default: "CNY")
+    var targetCurrency: String
 }
