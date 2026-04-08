@@ -19,6 +19,8 @@ struct LoanEngine {
             return calculateEqualInstallment(principal: params.principal, monthlyRate: monthlyRate, months: params.termMonths)
         case .equalPrincipal:
             return calculateEqualPrincipal(principal: params.principal, monthlyRate: monthlyRate, months: params.termMonths)
+        case .interestFirst:
+            return calculateInterestFirst(principal: params.principal, monthlyRate: monthlyRate, months: params.termMonths)
         }
     }
 
@@ -114,6 +116,42 @@ struct LoanEngine {
             totalInterest: totalInterest,
             principal: principal,
             schedule: schedule
+        )
+    }
+
+    // MARK: - Interest First (先息后本)
+    // Every month pays interest only; full principal returned on last month.
+
+    private static func calculateInterestFirst(principal: Decimal, monthlyRate: Decimal, months: Int) -> LoanResult {
+        let monthlyInterest = (principal * monthlyRate).rounded(to: 2)
+        var schedule: [AmortizationEntry] = []
+
+        for m in 1...months {
+            let isLast = m == months
+            let principalPart: Decimal = isLast ? principal : 0
+            let payment = monthlyInterest + principalPart
+            let remaining: Decimal = isLast ? 0 : principal
+
+            schedule.append(AmortizationEntry(
+                month: m,
+                payment: payment,
+                principal: principalPart,
+                interest: monthlyInterest,
+                remainingBalance: remaining
+            ))
+        }
+
+        let totalInterest   = monthlyInterest * Decimal(months)
+        let totalRepayment  = principal + totalInterest
+        let lastPayment     = monthlyInterest + principal
+
+        return LoanResult(
+            monthlyPayment:     monthlyInterest,   // regular monthly (interest only)
+            lastMonthPayment:   lastPayment,       // last month repays principal too
+            totalRepayment:     totalRepayment,
+            totalInterest:      totalInterest,
+            principal:          principal,
+            schedule:           schedule
         )
     }
 }

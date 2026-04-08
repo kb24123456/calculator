@@ -31,6 +31,7 @@ struct NumoTabView: View {
     @State private var copyScale: CGFloat = 1.0
     @State private var isToastVisible = false
     @State private var isUnitPickerExpanded = false
+    @State private var isLoanMethodExpanded = false
 
     var body: some View {
         NavigationStack {
@@ -121,11 +122,15 @@ struct NumoTabView: View {
         .onChange(of: appState.selectedTool) { _, _ in
             activeField = .primary
             isUnitPickerExpanded = false
+            isLoanMethodExpanded = false
             if isKeypadCollapsed {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                     isKeypadCollapsed = false
                 }
             }
+        }
+        .onChange(of: loanVM.isShowingHero) { _, isHero in
+            if isHero { isLoanMethodExpanded = false }
         }
         .sheet(isPresented: Binding(
             get: { appState.isAllToolsPanelOpen },
@@ -314,24 +319,72 @@ struct NumoTabView: View {
                 .transition(.push(from: .bottom).combined(with: .opacity))
 
         case .loan:
-            Group {
-                if let result = loanVM.result {
-                    HStack(spacing: 3) {
-                        Text("总利息").foregroundStyle(NumoColors.textSecondary)
-                        Text(ExpressionFormatter.formatCurrency(result.totalInterest))
-                            .foregroundStyle(NumoColors.danger)
-                            .contentTransition(.numericText())
-                            .animation(.easeInOut(duration: 0.2), value: result.totalInterest)
+            let hudWidth = UIScreen.main.bounds.width - 88
+            ZStack {
+                // ── Layer 1: Collapsed — current method + chevron ──
+                Button { isLoanMethodExpanded = true } label: {
+                    HStack(spacing: 4) {
+                        Text(loanVM.method == .equalInstallment ? "等额本息" :
+                             loanVM.method == .equalPrincipal   ? "等额本金" : "先息后本")
+                            .font(.subheadline.weight(.semibold))
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 9, weight: .semibold))
                     }
-                    .transition(.push(from: .bottom).combined(with: .opacity))
-                } else {
-                    Text("贷款成本分析")
-                        .foregroundStyle(NumoColors.textSecondary)
-                        .transition(.push(from: .top).combined(with: .opacity))
+                    .foregroundStyle(.primary)
                 }
+                .buttonStyle(.plain)
+                .allowsHitTesting(!isLoanMethodExpanded)
+                .opacity(!isLoanMethodExpanded ? 1 : 0)
+                .scaleEffect(!isLoanMethodExpanded ? 1 : 0.82)
+                .blur(radius: !isLoanMethodExpanded ? 0 : 3)
+                .animation(
+                    isLoanMethodExpanded
+                        ? .spring(response: 0.22, dampingFraction: 0.90)
+                        : .spring(response: 0.44, dampingFraction: 0.82).delay(0.12),
+                    value: isLoanMethodExpanded
+                )
+
+                // ── Layer 2: Expanded — 3 method options (cascade) ──
+                HStack(spacing: 0) {
+                    ForEach(Array(RepaymentMethod.allCases.enumerated()), id: \.offset) { index, m in
+                        let distance   = abs(index - 1)
+                        let xDir: CGFloat = index < 1 ? 1 : (index > 1 ? -1 : 0)
+                        let xMag: CGFloat = CGFloat(distance) * 8
+                        let entryDelay = Double(distance) * 0.065
+                        let exitDelay  = Double(1 - distance) * 0.055
+
+                        Spacer(minLength: 0)
+                        Button {
+                            if loanVM.method != m {
+                                loanVM.method = m
+                                loanVM.calculate()
+                            }
+                            isLoanMethodExpanded = false
+                        } label: {
+                            Text(m == .equalInstallment ? "等额本息" :
+                                 m == .equalPrincipal   ? "等额本金" : "先息后本")
+                                .font(.system(size: 15,
+                                              weight: loanVM.method == m ? .semibold : .regular,
+                                              design: .rounded))
+                                .foregroundStyle(loanVM.method == m ? Color.primary : Color.secondary)
+                                .padding(.vertical, 6)
+                        }
+                        .buttonStyle(.plain)
+                        .allowsHitTesting(isLoanMethodExpanded)
+                        .opacity(isLoanMethodExpanded ? 1 : 0)
+                        .scaleEffect(isLoanMethodExpanded ? 1 : 0.62)
+                        .offset(x: isLoanMethodExpanded ? 0 : xDir * xMag, y: isLoanMethodExpanded ? 0 : 6)
+                        .animation(
+                            isLoanMethodExpanded
+                                ? .spring(response: 0.52, dampingFraction: 0.68).delay(entryDelay)
+                                : .spring(response: 0.26, dampingFraction: 0.90).delay(exitDelay),
+                            value: isLoanMethodExpanded
+                        )
+                    }
+                    Spacer(minLength: 0)
+                }
+                .frame(width: hudWidth)
             }
-            .font(.system(size: 12, weight: .medium, design: .rounded).monospacedDigit())
-            .animation(.easeInOut(duration: 0.2), value: loanVM.result != nil)
             .transition(.push(from: .bottom).combined(with: .opacity))
 
         default:
@@ -451,6 +504,19 @@ struct NumoTabView: View {
                 appendDigit(to: &loanVM.amountText, char: char)
             case .secondary:
                 appendDigit(to: &loanVM.annualRateText, char: char)
+            case .tertiary:
+                guard char != ".", char != "00" else { return }
+                let proposed = loanVM.termYearText + char
+                if let year = Int(proposed), year >= 1, year <= 30 {
+                    loanVM.termYearText = proposed
+                    loanVM.termMonths = year * 12
+                } else if Int(proposed) ?? 0 > 30 {
+                    // Start fresh with this single digit if valid
+                    if let y = Int(char), y >= 1 {
+                        loanVM.termYearText = char
+                        loanVM.termMonths = y * 12
+                    }
+                }
             default: break
             }
             loanVM.calculate()
@@ -507,6 +573,13 @@ struct NumoTabView: View {
                 deleteLastDigit(from: &loanVM.amountText)
             case .secondary:
                 deleteLastDigit(from: &loanVM.annualRateText)
+            case .tertiary:
+                if loanVM.termYearText.count > 1 {
+                    loanVM.termYearText.removeLast()
+                } else {
+                    loanVM.termYearText = "1"
+                }
+                loanVM.termMonths = (Int(loanVM.termYearText) ?? 1) * 12
             default: break
             }
             loanVM.calculate()
@@ -554,6 +627,9 @@ struct NumoTabView: View {
                 loanVM.amountText = ""
             case .secondary:
                 loanVM.annualRateText = ""
+            case .tertiary:
+                loanVM.termYearText = "30"
+                loanVM.termMonths = 360
             default: break
             }
             loanVM.calculate()

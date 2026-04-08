@@ -15,15 +15,11 @@ final class LoanCalculatorViewModel {
     var method: RepaymentMethod = .equalInstallment
     var result: LoanResult?
     var showSchedule: Bool = false
+    var isShowingHero: Bool = false
+    var termYearText: String = "30"
 
-    static let termPresets = [
-        (label: "5年", months: 60),
-        (label: "10年", months: 120),
-        (label: "15年", months: 180),
-        (label: "20年", months: 240),
-        (label: "25年", months: 300),
-        (label: "30年", months: 360),
-    ]
+    static let termPresets: [(label: String, months: Int)] =
+        (1...30).map { y in ("\(y) 年", y * 12) }
 
     static let ratePresets = [
         (label: "LPR 3.45%", rate: "3.45"),

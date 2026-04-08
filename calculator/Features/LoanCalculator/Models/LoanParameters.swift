@@ -10,6 +10,7 @@ import Foundation
 enum RepaymentMethod: String, CaseIterable {
     case equalInstallment  // 等额本息
     case equalPrincipal    // 等额本金
+    case interestFirst     // 先息后本
 }
 
 struct LoanParameters {
