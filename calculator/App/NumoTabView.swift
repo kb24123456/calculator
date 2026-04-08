@@ -13,6 +13,15 @@ struct NumoTabView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(\.modelContext) private var modelContext
 
+    @AppStorage("numo_theme") private var themeRaw: String = "system"
+    private var colorSchemeForSheet: ColorScheme? {
+        switch themeRaw {
+        case "light": .light
+        case "dark":  .dark
+        default:      nil
+        }
+    }
+
     // MARK: - Persistent ViewModels
 
     @State private var calculatorVM = CalculatorViewModel()
@@ -182,6 +191,7 @@ struct NumoTabView: View {
             SettingsView()
                 .environment(appState)
                 .environment(settings)
+                .preferredColorScheme(colorSchemeForSheet)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.hidden)
         }

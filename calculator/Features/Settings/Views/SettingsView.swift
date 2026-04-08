@@ -20,17 +20,6 @@ struct SettingsView: View {
 
     @State private var showClearConfirmation = false
 
-    /// 直接订阅 AppStorage，让设置页内也能实时跟随外观切换
-    @AppStorage("numo_theme") private var localThemeRaw: String = "system"
-
-    private var colorSchemeForView: ColorScheme? {
-        switch localThemeRaw {
-        case "light": .light
-        case "dark":  .dark
-        default:      nil
-        }
-    }
-
     /// All tools except calculator — these are the ones users can toggle on/off
     private var toggleableTools: [Tool] {
         Tool.allCases.filter { $0 != .calculator }
@@ -387,7 +376,6 @@ struct SettingsView: View {
                 Text(String(localized: "此操作不可撤销"))
             }
         }
-        .preferredColorScheme(colorSchemeForView)
     }
 
     // MARK: - Design Components
