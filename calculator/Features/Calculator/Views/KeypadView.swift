@@ -143,6 +143,10 @@ struct KeypadView: View {
                         onUndo()
                     }
             )
+            .accessibilityLabel(String(localized: "撤销"))
+            .accessibilityHint(String(localized: "撤销上一步操作"))
+            .accessibilityAddTraits(.isButton)
+            .accessibilityRemoveTraits(.isImage)
     }
 
     // MARK: - Delete Button with long-press

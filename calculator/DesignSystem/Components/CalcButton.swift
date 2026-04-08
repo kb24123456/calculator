@@ -46,6 +46,23 @@ struct CalcButton: View {
         }
     }
 
+    // MARK: - Accessibility
+
+    private var a11yLabel: String {
+        switch label {
+        case "⌫": return String(localized: "删除")
+        case "÷": return String(localized: "除以")
+        case "×": return String(localized: "乘以")
+        case "−": return String(localized: "减")
+        case "+": return String(localized: "加")
+        case "=": return String(localized: "等于")
+        case "%": return String(localized: "百分比")
+        case "C": return String(localized: "清除")
+        case ".": return String(localized: "小数点")
+        default: return label
+        }
+    }
+
     // MARK: - Standard Button (number, op, function, equals)
 
     private var standardContent: some View {
@@ -68,6 +85,8 @@ struct CalcButton: View {
                         }
                     }
             )
+            .accessibilityLabel(a11yLabel)
+            .accessibilityAddTraits(.isButton)
     }
 
     // MARK: - Delete Button (with long press rapid-delete)
@@ -104,6 +123,9 @@ struct CalcButton: View {
                             stopRapidDelete()
                         }
                 )
+                .accessibilityLabel(String(localized: "删除"))
+                .accessibilityHint(String(localized: "长按连续删除，持续按住后可全部清除"))
+                .accessibilityAddTraits(.isButton)
 
             // Clear bubble after sustained long press
             if showClearBubble {

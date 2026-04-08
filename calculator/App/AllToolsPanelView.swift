@@ -81,6 +81,10 @@ private struct AllToolCard: View {
                     .buttonStyle(.plain)
                     .disabled(!isFavorite && !canAddFavorite)
                     .opacity(!isFavorite && !canAddFavorite ? 0.3 : 1.0)
+                    .accessibilityLabel(isFavorite
+                        ? String(localized: "从快捷工具移除")
+                        : String(localized: "添加到快捷工具"))
+                    .accessibilityHint(tool.displayName)
                 }
 
                 Text(tool.displayName)
@@ -102,6 +106,7 @@ private struct AllToolCard: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(tool.displayName)
         .animation(NumoAnimations.chipSelection, value: isFavorite)
     }
 }

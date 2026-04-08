@@ -51,6 +51,7 @@ struct SettingsView: View {
                                 ))
                                 .labelsHidden()
                                 .tint(NumoColors.textSecondary)
+                                .accessibilityLabel(tool.displayName)
                             }
                         }
                     }
@@ -68,7 +69,7 @@ struct SettingsView: View {
                             Text(String(localized: "运算符位置"))
                                 .font(.system(size: 16, design: .rounded))
                             Spacer()
-                            Picker("", selection: $s.operatorOnRight) {
+                            Picker(String(localized: "运算符位置"), selection: $s.operatorOnRight) {
                                 Text(String(localized: "左侧")).tag(false)
                                 Text(String(localized: "右侧")).tag(true)
                             }
@@ -84,7 +85,7 @@ struct SettingsView: View {
                             Text(String(localized: "小数位数"))
                                 .font(.system(size: 16, design: .rounded))
                             Spacer()
-                            Picker("", selection: $s.decimalPrecision) {
+                            Picker(String(localized: "小数位数"), selection: $s.decimalPrecision) {
                                 Text(String(localized: "自动")).tag(-1)
                                 Text("2").tag(2)
                                 Text("4").tag(4)
@@ -104,7 +105,7 @@ struct SettingsView: View {
                             Text(String(localized: "千分位"))
                                 .font(.system(size: 16, design: .rounded))
                             Spacer()
-                            Picker("", selection: $s.thousandsSeparatorRaw) {
+                            Picker(String(localized: "千分位"), selection: $s.thousandsSeparatorRaw) {
                                 ForEach(ThousandsSeparator.allCases) { sep in
                                     Text(sep.displayName).tag(sep.rawValue)
                                 }
@@ -181,7 +182,7 @@ struct SettingsView: View {
                             Text(String(localized: "外观模式"))
                                 .font(.system(size: 16, design: .rounded))
                             Spacer()
-                            Picker("", selection: $s.themeRaw) {
+                            Picker(String(localized: "外观模式"), selection: $s.themeRaw) {
                                 ForEach(AppTheme.allCases) { theme in
                                     Text(theme.displayName).tag(theme.rawValue)
                                 }

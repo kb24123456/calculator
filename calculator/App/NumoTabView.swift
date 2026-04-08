@@ -123,6 +123,9 @@ struct NumoTabView: View {
                             .contentTransition(.symbolEffect(.replace.downUp))
                             .animation(NumoAnimations.chipSelection, value: appState.selectedTool)
                     }
+                    .accessibilityLabel(appState.selectedTool == .calculator
+                        ? String(localized: "历史记录")
+                        : String(localized: "返回计算器"))
                 }
                 ToolbarItem(placement: .principal) {
                     principalArea
@@ -134,6 +137,7 @@ struct NumoTabView: View {
                         Image(systemName: "line.3.horizontal")
                             .font(.system(size: 16, weight: .medium))
                     }
+                    .accessibilityLabel(String(localized: "设置"))
                 }
             }
         }
@@ -219,6 +223,7 @@ struct NumoTabView: View {
                         .foregroundStyle(.primary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(String(localized: "分享结果"))
             }
             .padding(.horizontal, NumoSpacing.lg)
             .padding(.vertical, NumoSpacing.sm)
