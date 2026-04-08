@@ -22,7 +22,11 @@ struct CalcButton: View {
     var onLongPressDelete: (() -> Void)?
     var onLongPressClear: (() -> Void)?
 
+    @State private var isPressed = false
+
+    // Delete long-press state
     @State private var isLongPressing = false
+    @State private var longPressTimer: Timer?
     @State private var deleteTimer: Timer?
     @State private var deleteCount = 0
     @State private var showClearBubble = false
@@ -37,91 +41,113 @@ struct CalcButton: View {
     var body: some View {
         if label == "⌫" {
             deleteButtonContent
-        } else if type == .number {
-            numberButtonContent
         } else {
-            standardButtonContent
+            standardContent
         }
     }
 
-    // MARK: - Number Button (plain text + custom press highlight)
+    // MARK: - Standard Button (number, op, function, equals)
 
-    private var numberButtonContent: some View {
-        Button {
-            triggerHaptic()
-            action()
-        } label: {
-            Text(label)
-                .font(NumoTypography.keypadLarge)
-                .foregroundStyle(NumoColors.textPrimary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .buttonStyle(CalcButtonStyle(type: .number))
-        .contentShape(Rectangle())
+    private var standardContent: some View {
+        buttonLabel
+            .background(pressHighlight)
+            .scaleEffect(isPressed ? 0.88 : 1.0)
+            .animation(NumoAnimations.buttonPress, value: isPressed)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        if !isPressed { isPressed = true }
+                    }
+                    .onEnded { value in
+                        isPressed = false
+                        let dist = hypot(value.translation.width, value.translation.height)
+                        if dist < 20 {
+                            triggerHaptic()
+                            action()
+                        }
+                    }
+            )
     }
 
-    // MARK: - Standard Button (op, function, equals)
-
-    private var standardButtonContent: some View {
-        Button {
-            triggerHaptic()
-            action()
-        } label: {
-            nonNumberLabel
-        }
-        .buttonStyle(CalcButtonStyle(type: type))
-        .contentShape(Rectangle())
-    }
-
-    // MARK: - Delete Button (with long press)
+    // MARK: - Delete Button (with long press rapid-delete)
 
     private var deleteButtonContent: some View {
         ZStack(alignment: .top) {
-            nonNumberLabel
+            buttonLabel
+                .background(pressHighlight)
+                .scaleEffect(isPressed ? 0.88 : 1.0)
+                .animation(NumoAnimations.buttonPress, value: isPressed)
                 .contentShape(Rectangle())
-                .onTapGesture {
-                    triggerHaptic()
-                    action()
-                }
-                .onLongPressGesture(minimumDuration: 0.3) {
-                    // Long press recognized - start rapid delete
-                    startRapidDelete()
-                } onPressingChanged: { pressing in
-                    if !pressing && isLongPressing {
-                        stopRapidDelete()
-                    }
-                }
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { _ in
+                            if !isPressed {
+                                isPressed = true
+                                // Start long-press detection after 0.3s
+                                longPressTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: false) { _ in
+                                    DispatchQueue.main.async {
+                                        startRapidDelete()
+                                    }
+                                }
+                            }
+                        }
+                        .onEnded { value in
+                            let dist = hypot(value.translation.width, value.translation.height)
+                            if !isLongPressing && dist < 20 {
+                                triggerHaptic()
+                                action()
+                            }
+                            isPressed = false
+                            longPressTimer?.invalidate()
+                            longPressTimer = nil
+                            stopRapidDelete()
+                        }
+                )
 
-            // Clear bubble that appears after sustained long press
+            // Clear bubble after sustained long press
             if showClearBubble {
-                Button {
-                    onLongPressClear?()
-                    stopRapidDelete()
-                } label: {
-                    Text("AC")
-                        .font(NumoTypography.bodySmall.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, NumoSpacing.sm)
-                        .padding(.vertical, NumoSpacing.xxs)
-                        .background(
-                            Capsule().fill(NumoColors.chipSelected)
-                        )
-                }
-                .buttonStyle(.plain)
-                .transition(.asymmetric(
-                    insertion: .scale(scale: 0.5).combined(with: .opacity).combined(with: .offset(y: 10)),
-                    removal: .opacity
-                ))
-                .offset(y: -36)
+                Text("AC")
+                    .font(NumoTypography.bodySmall.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, NumoSpacing.sm)
+                    .padding(.vertical, NumoSpacing.xxs)
+                    .background(
+                        Capsule().fill(NumoColors.chipSelected)
+                    )
+                    .contentShape(Capsule())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onEnded { value in
+                                let dist = hypot(value.translation.width, value.translation.height)
+                                if dist < 30 {
+                                    onLongPressClear?()
+                                    isPressed = false
+                                    longPressTimer?.invalidate()
+                                    longPressTimer = nil
+                                    stopRapidDelete()
+                                }
+                            }
+                    )
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.5).combined(with: .opacity).combined(with: .offset(y: 10)),
+                        removal: .opacity
+                    ))
+                    .offset(y: -36)
             }
         }
     }
 
-    // MARK: - Non-number Label
+    // MARK: - Button Label
 
     @ViewBuilder
-    private var nonNumberLabel: some View {
+    private var buttonLabel: some View {
         switch type {
+        case .number:
+            Text(label)
+                .font(NumoTypography.keypadLarge)
+                .foregroundStyle(NumoColors.textPrimary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .equals:
             Text(label)
                 .font(NumoTypography.keypadLarge)
@@ -141,8 +167,32 @@ struct CalcButton: View {
                 .font(NumoTypography.keypadMedium)
                 .foregroundStyle(NumoColors.textSecondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-        case .number:
-            EmptyView() // handled by numberButtonContent
+        }
+    }
+
+    // MARK: - Press Highlight
+
+    @ViewBuilder
+    private var pressHighlight: some View {
+        if type == .number || type == .function || type == .op {
+            GeometryReader { geo in
+                let r = min(geo.size.width, geo.size.height) * 0.22
+                ZStack {
+                    RoundedRectangle(cornerRadius: r, style: .continuous)
+                        .fill(NumoColors.keyPressHighlight)
+                    RoundedRectangle(cornerRadius: r, style: .continuous)
+                        .fill(
+                            RadialGradient(
+                                colors: [.white.opacity(0.45), .clear],
+                                center: .init(x: 0.5, y: 0.35),
+                                startRadius: 0,
+                                endRadius: max(geo.size.width, geo.size.height) * 0.5
+                            )
+                        )
+                }
+            }
+            .opacity(isPressed ? 1 : 0)
+            .animation(NumoAnimations.keyHighlight, value: isPressed)
         }
     }
 
@@ -152,23 +202,24 @@ struct CalcButton: View {
         isLongPressing = true
         deleteCount = 0
 
-        // Initial medium-speed delete
         deleteTimer = Timer.scheduledTimer(withTimeInterval: 0.12, repeats: true) { timer in
-            deleteCount += 1
-            onLongPressDelete?()
-            triggerHaptic()
+            DispatchQueue.main.async {
+                deleteCount += 1
+                onLongPressDelete?()
+                triggerHaptic()
 
-            // After 5 deletes, accelerate
-            if deleteCount == 5 {
-                timer.invalidate()
-                deleteTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
-                    deleteCount += 1
-                    onLongPressDelete?()
+                if deleteCount == 5 {
+                    timer.invalidate()
+                    deleteTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+                        DispatchQueue.main.async {
+                            deleteCount += 1
+                            onLongPressDelete?()
 
-                    // Show clear bubble after ~1.5s total
-                    if deleteCount >= 15 && !showClearBubble {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                            showClearBubble = true
+                            if deleteCount >= 15 && !showClearBubble {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                    showClearBubble = true
+                                }
+                            }
                         }
                     }
                 }
@@ -206,41 +257,6 @@ struct CalcButton: View {
             intensity = 0.8
         }
         generator.impactOccurred(intensity: intensity)
-    }
-}
-
-// MARK: - Button Style (for non-number, non-glass keys)
-
-private struct CalcButtonStyle: ButtonStyle {
-    let type: CalcButtonType
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background(
-                Group {
-                    if type == .number || type == .function || type == .op {
-                        ZStack {
-                            // Base dim layer
-                            Circle()
-                                .fill(NumoColors.keyPressHighlight)
-                            // Specular highlight — radial white glow from center
-                            Circle()
-                                .fill(
-                                    RadialGradient(
-                                        colors: [.white.opacity(0.45), .clear],
-                                        center: .init(x: 0.5, y: 0.35),
-                                        startRadius: 0,
-                                        endRadius: 28
-                                    )
-                                )
-                        }
-                        .opacity(configuration.isPressed ? 1 : 0)
-                        .animation(NumoAnimations.keyHighlight, value: configuration.isPressed)
-                    }
-                }
-            )
-            .scaleEffect(configuration.isPressed ? 0.88 : 1.0)
-            .animation(NumoAnimations.buttonPress, value: configuration.isPressed)
     }
 }
 

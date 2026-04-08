@@ -22,6 +22,7 @@ struct NumoTabView: View {
     @State private var dateVM = DateCalculatorViewModel()
     @State private var unitVM = UnitConverterViewModel()
     @State private var loanVM = LoanCalculatorViewModel()
+    @State private var preciousMetalsVM = PreciousMetalsViewModel()
 
     /// Active input field for multi-field tools
     @State private var activeField: ToolInputField = .primary
@@ -32,6 +33,7 @@ struct NumoTabView: View {
     @State private var isToastVisible = false
     @State private var isUnitPickerExpanded = false
     @State private var isDateModeExpanded   = false
+    @State private var isMetalsModeExpanded = false
 
     var body: some View {
         NavigationStack {
@@ -123,6 +125,7 @@ struct NumoTabView: View {
             activeField = .primary
             isUnitPickerExpanded = false
             isDateModeExpanded   = false
+            isMetalsModeExpanded = false
             if isKeypadCollapsed {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                     isKeypadCollapsed = false
@@ -397,6 +400,82 @@ struct NumoTabView: View {
             }
             .transition(.opacity)
 
+        case .preciousMetals:
+            ZStack {
+                // ── 收起态：当前模式名 + chevron ──
+                Button { isMetalsModeExpanded = true } label: {
+                    VStack(spacing: 2) {
+                        HStack(spacing: 4) {
+                            Text(preciousMetalsVM.mode == .purchase ? "购买力" : "古代俸禄")
+                                .font(.subheadline.weight(.semibold))
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 9, weight: .semibold))
+                        }
+                        .foregroundStyle(.primary)
+                        if preciousMetalsVM.mode == .purchase {
+                            metalsPriceSubtitle
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                .allowsHitTesting(!isMetalsModeExpanded)
+                .opacity(isMetalsModeExpanded ? 0 : 1)
+                .scaleEffect(isMetalsModeExpanded ? 0.82 : 1)
+                .blur(radius: isMetalsModeExpanded ? 3 : 0)
+                .animation(
+                    isMetalsModeExpanded
+                        ? .spring(response: 0.22, dampingFraction: 0.90)
+                        : .spring(response: 0.44, dampingFraction: 0.82).delay(0.12),
+                    value: isMetalsModeExpanded
+                )
+
+                // ── 展开态：2 个模式 ──
+                let metalsModes = PreciousMetalsMode.allCases
+                let hudWidth = UIScreen.main.bounds.width - 88
+                HStack(spacing: 0) {
+                    ForEach(Array(metalsModes.enumerated()), id: \.element) { index, mode in
+                        let distance   = abs(index - 0)
+                        let isSelected = preciousMetalsVM.mode == mode
+                        let xDir: CGFloat = index < 1 ? 1 : -1
+                        let xMag: CGFloat = CGFloat(distance) * 10
+                        let entryDelay = Double(distance) * 0.065
+                        let exitDelay  = Double(1 - distance) * 0.055
+
+                        Spacer(minLength: 0)
+
+                        Button {
+                            if !isSelected {
+                                preciousMetalsVM.mode = mode
+                                preciousMetalsVM.convert()
+                            }
+                            isMetalsModeExpanded = false
+                        } label: {
+                            Text(mode == .purchase ? "购买力" : "古代俸禄")
+                                .font(.system(size: 15,
+                                              weight: isSelected ? .semibold : .regular,
+                                              design: .rounded))
+                                .foregroundStyle(isSelected ? Color.primary : Color.secondary)
+                                .padding(.vertical, 6)
+                        }
+                        .buttonStyle(.plain)
+                        .allowsHitTesting(isMetalsModeExpanded)
+                        .opacity(isMetalsModeExpanded ? 1 : 0)
+                        .scaleEffect(isMetalsModeExpanded ? 1 : 0.62)
+                        .offset(x: isMetalsModeExpanded ? 0 : xDir * xMag,
+                                y: isMetalsModeExpanded ? 0 : 6)
+                        .animation(
+                            isMetalsModeExpanded
+                                ? .spring(response: 0.52, dampingFraction: 0.68).delay(entryDelay)
+                                : .spring(response: 0.26, dampingFraction: 0.90).delay(exitDelay),
+                            value: isMetalsModeExpanded
+                        )
+                    }
+                    Spacer(minLength: 0)
+                }
+                .frame(width: hudWidth)
+            }
+            .transition(.opacity)
+
         default:
             Color.clear
                 .frame(width: 1, height: 1)
@@ -465,6 +544,8 @@ struct NumoTabView: View {
                 UnitConverterView(viewModel: unitVM)
             case .loan:
                 LoanCalculatorView(viewModel: loanVM, activeField: $activeField, onScrollCollapse: collapseKeypad)
+            case .preciousMetals:
+                PreciousMetalsView(viewModel: preciousMetalsVM)
             }
         }
         .transition(.toolSwitch)
@@ -530,6 +611,9 @@ struct NumoTabView: View {
             default: break
             }
             loanVM.calculate()
+        case .preciousMetals:
+            appendDigit(to: &preciousMetalsVM.inputAmount, char: char)
+            preciousMetalsVM.convert()
         }
     }
 
@@ -593,6 +677,9 @@ struct NumoTabView: View {
             default: break
             }
             loanVM.calculate()
+        case .preciousMetals:
+            deleteLastDigit(from: &preciousMetalsVM.inputAmount)
+            preciousMetalsVM.convert()
         }
     }
 
@@ -643,6 +730,9 @@ struct NumoTabView: View {
             default: break
             }
             loanVM.calculate()
+        case .preciousMetals:
+            preciousMetalsVM.inputAmount = ""
+            preciousMetalsVM.convert()
         }
     }
 
@@ -679,6 +769,8 @@ struct NumoTabView: View {
             unitVM.convert()
         case .loan:
             loanVM.calculate()
+        case .preciousMetals:
+            preciousMetalsVM.convert()
         }
     }
 
@@ -729,6 +821,14 @@ struct NumoTabView: View {
         case .loan:
             guard let r = loanVM.result else { return nil }
             return ExpressionFormatter.formatCurrency(r.monthlyPayment)
+        case .preciousMetals:
+            switch preciousMetalsVM.mode {
+            case .purchase:
+                let g = preciousMetalsVM.goldGrams
+                return g.isEmpty ? nil : "黄金 \(g)g"
+            case .salary:
+                return preciousMetalsVM.matchedRank?.title
+            }
         }
     }
 
@@ -780,6 +880,34 @@ struct NumoTabView: View {
         case .difference: return "日期间隔"
         case .offset:     return "日期推算"
         case .workday:    return "工作日"
+        }
+    }
+
+    // MARK: - Precious Metals HUD subtitle
+
+    @ViewBuilder
+    private var metalsPriceSubtitle: some View {
+        if preciousMetalsVM.isLoading {
+            Text("行情获取中…")
+                .font(.system(size: 10).monospacedDigit())
+                .foregroundStyle(NumoColors.textTertiary)
+        } else if preciousMetalsVM.loadFailed && !preciousMetalsVM.metalPrice.isLive {
+            Text("Au ¥\(ExpressionFormatter.format(preciousMetalsVM.metalPrice.goldPerGram))/g（参考价）")
+                .font(.system(size: 10).monospacedDigit())
+                .foregroundStyle(NumoColors.textTertiary)
+        } else {
+            HStack(spacing: 3) {
+                Image(systemName: "dot.radiowaves.left.and.right")
+                    .font(.system(size: 9))
+                Text("Au ¥\(ExpressionFormatter.format(preciousMetalsVM.metalPrice.goldPerGram))/g")
+                    .font(.system(size: 10).monospacedDigit())
+                if let updated = preciousMetalsVM.metalPrice.lastUpdated {
+                    Text(updated.relativeDescription)
+                        .font(.system(size: 10).monospacedDigit())
+                }
+            }
+            .foregroundStyle(NumoColors.textTertiary)
+            .contentTransition(.numericText())
         }
     }
 }

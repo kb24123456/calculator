@@ -109,21 +109,40 @@ struct KeypadView: View {
 
     // MARK: - Undo Button
 
+    @State private var undoPressed = false
+
     private var undoButton: some View {
-        Button {
-            guard canUndo else { return }
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.8)
-            undoBounceTrigger += 1
-            onUndo()
-        } label: {
-            Image(systemName: "arrow.uturn.backward")
-                .font(.system(size: 20, weight: .medium))
-                .foregroundStyle(canUndo ? NumoColors.textPrimary : NumoColors.textPrimary.opacity(0.3))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .symbolEffect(.bounce, options: .speed(1.5), value: undoBounceTrigger)
-        }
-        .buttonStyle(UndoButtonStyle())
-        .contentShape(Rectangle())
+        Image(systemName: "arrow.uturn.backward")
+            .font(.system(size: 20, weight: .medium))
+            .foregroundStyle(canUndo ? NumoColors.textPrimary : NumoColors.textPrimary.opacity(0.3))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .symbolEffect(.bounce, options: .speed(1.5), value: undoBounceTrigger)
+            .background(
+                GeometryReader { geo in
+                    let r = min(geo.size.width, geo.size.height) * 0.22
+                    RoundedRectangle(cornerRadius: r, style: .continuous)
+                        .fill(NumoColors.keyPressHighlight)
+                }
+                .opacity(undoPressed ? 1 : 0)
+                .animation(NumoAnimations.keyHighlight, value: undoPressed)
+            )
+            .scaleEffect(undoPressed ? 0.95 : 1.0)
+            .animation(NumoAnimations.buttonPress, value: undoPressed)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        if !undoPressed { undoPressed = true }
+                    }
+                    .onEnded { value in
+                        undoPressed = false
+                        let dist = hypot(value.translation.width, value.translation.height)
+                        guard canUndo, dist < 20 else { return }
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.8)
+                        undoBounceTrigger += 1
+                        onUndo()
+                    }
+            )
     }
 
     // MARK: - Delete Button with long-press
@@ -136,21 +155,6 @@ struct KeypadView: View {
     }
 }
 
-// MARK: - Undo Button Style
-
-private struct UndoButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background(
-                Circle()
-                    .fill(NumoColors.keyPressHighlight)
-                    .opacity(configuration.isPressed ? 1 : 0)
-                    .animation(NumoAnimations.keyHighlight, value: configuration.isPressed)
-            )
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-            .animation(NumoAnimations.buttonPress, value: configuration.isPressed)
-    }
-}
 
 #Preview {
     KeypadView(

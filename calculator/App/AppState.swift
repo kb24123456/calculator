@@ -23,6 +23,7 @@ enum Tool: String, CaseIterable, Identifiable {
     case date = "date"
     case unit = "unit"
     case loan = "loan"
+    case preciousMetals = "preciousMetals"
 
     var id: String { rawValue }
 
@@ -36,6 +37,7 @@ enum Tool: String, CaseIterable, Identifiable {
         case .date: String(localized: "日期")
         case .unit: String(localized: "单位")
         case .loan: String(localized: "贷款")
+        case .preciousMetals: String(localized: "真金白银")
         }
     }
 
@@ -49,6 +51,7 @@ enum Tool: String, CaseIterable, Identifiable {
         case .date: "calendar"
         case .unit: "ruler"
         case .loan: "house"
+        case .preciousMetals: "sparkles"
         }
     }
 }
