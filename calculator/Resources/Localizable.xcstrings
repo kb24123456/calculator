@@ -50,7 +50,11 @@
         }
       }
     },
+    "%lld" : {
+
+    },
     "%lld 周 %lld 天" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -125,6 +129,7 @@
       }
     },
     "之前" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -135,6 +140,7 @@
       }
     },
     "之后" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -174,12 +180,6 @@
           }
         }
       }
-    },
-    "修改参数" : {
-
-    },
-    "先息后本" : {
-
     },
     "全部工具" : {
       "localizations" : {
@@ -333,7 +333,11 @@
         }
       }
     },
+    "天" : {
+
+    },
     "天数" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -350,6 +354,7 @@
 
     },
     "工作日" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -360,6 +365,7 @@
       }
     },
     "工作日天数" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -408,6 +414,7 @@
       }
     },
     "开始日期" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -431,6 +438,7 @@
       }
     },
     "总还款" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -444,6 +452,7 @@
 
     },
     "排除中国法定节假日" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -469,6 +478,9 @@
     "数据换算" : {
 
     },
+    "方向" : {
+
+    },
     "无法获取汇率，请检查网络" : {
       "localizations" : {
         "en" : {
@@ -490,6 +502,7 @@
       }
     },
     "日期推算" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -500,6 +513,7 @@
       }
     },
     "日期间隔" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -568,9 +582,6 @@
           }
         }
       }
-    },
-    "末月 %@" : {
-
     },
     "末月月供" : {
       "extractionState" : "stale",
@@ -670,6 +681,7 @@
       }
     },
     "相差 %lld 天" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -708,6 +720,7 @@
 
     },
     "等额本息" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -718,6 +731,7 @@
       }
     },
     "等额本金" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -728,6 +742,7 @@
       }
     },
     "经过 %lld 个自然日，跳过 %lld 天" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -738,6 +753,7 @@
       }
     },
     "结束日期" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -779,9 +795,6 @@
     "设置" : {
 
     },
-    "请先输入贷款金额" : {
-
-    },
     "贷款" : {
       "localizations" : {
         "en" : {
@@ -820,6 +833,7 @@
       }
     },
     "起始日期" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -850,9 +864,6 @@
         }
       }
     },
-    "输入贷款金额后查看月供" : {
-
-    },
     "输入金额" : {
       "localizations" : {
         "en" : {
@@ -870,6 +881,9 @@
 
     },
     "运算符位置" : {
+
+    },
+    "还款方式" : {
 
     },
     "还款明细" : {

@@ -15,7 +15,6 @@ final class LoanCalculatorViewModel {
     var method: RepaymentMethod = .equalInstallment
     var result: LoanResult?
     var showSchedule: Bool = false
-    var isShowingHero: Bool = false
     var termYearText: String = "30"
 
     static let termPresets: [(label: String, months: Int)] =
