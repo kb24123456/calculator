@@ -179,7 +179,7 @@ struct NumoTabView: View {
                 .environment(appState)
                 .environment(settings)
                 .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
+                .presentationDragIndicator(.hidden)
         }
     }
 

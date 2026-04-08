@@ -28,261 +28,179 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 28) {
-
-                    // MARK: - Header
-                    HStack {
-                        Button {
-                            dismiss()
-                        } label: {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(NumoColors.textSecondary)
-                                .frame(width: 32, height: 32)
-                        }
-                        Spacer()
-                        Text(String(localized: "设置"))
-                            .font(.system(size: 17, weight: .semibold, design: .rounded))
-                        Spacer()
-                        // Invisible spacer to center title
-                        Color.clear
-                            .frame(width: 32, height: 32)
-                    }
-                    .padding(.horizontal, 20)
+                VStack(spacing: 0) {
 
                     // MARK: - Quick Tools
                     settingsSection(title: String(localized: "快捷工具")) {
-                        VStack(spacing: 0) {
-                            ForEach(toggleableTools) { tool in
-                                settingsRow {
-                                    Image(systemName: tool.icon)
-                                        .font(.system(size: 16, weight: .medium))
-                                        .foregroundStyle(NumoColors.textSecondary)
-                                        .frame(width: 24)
-                                    Text(tool.displayName)
-                                        .font(.system(size: 16, design: .rounded))
-                                    Spacer()
-                                    Toggle("", isOn: Binding(
-                                        get: { appState.isFavorite(tool) },
-                                        set: { _ in
-                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                                appState.toggleFavorite(tool)
-                                            }
+                        ForEach(toggleableTools) { tool in
+                            settingsRow {
+                                Image(systemName: tool.icon)
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundStyle(NumoColors.textSecondary)
+                                    .frame(width: 24)
+                                Text(tool.displayName)
+                                    .font(.system(size: 16, design: .rounded))
+                                Spacer()
+                                Toggle("", isOn: Binding(
+                                    get: { appState.isFavorite(tool) },
+                                    set: { _ in
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                            appState.toggleFavorite(tool)
                                         }
-                                    ))
-                                    .labelsHidden()
-                                    .tint(NumoColors.textSecondary)
-                                }
+                                    }
+                                ))
+                                .labelsHidden()
+                                .tint(NumoColors.textSecondary)
                             }
                         }
                     }
+
+                    sectionDivider
 
                     // MARK: - Calculator
                     settingsSection(title: String(localized: "计算器")) {
-                        VStack(spacing: 0) {
-                            settingsRow {
-                                @Bindable var s = settings
-                                Image(systemName: "keyboard")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundStyle(NumoColors.textSecondary)
-                                    .frame(width: 24)
-                                Text(String(localized: "运算符位置"))
+                        settingsRow {
+                            @Bindable var s = settings
+                            Image(systemName: "keyboard")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(NumoColors.textSecondary)
+                                .frame(width: 24)
+                            Text(String(localized: "运算符位置"))
+                                .font(.system(size: 16, design: .rounded))
+                            Spacer()
+                            Picker("", selection: $s.operatorOnRight) {
+                                Text(String(localized: "左侧")).tag(false)
+                                Text(String(localized: "右侧")).tag(true)
+                            }
+                            .pickerStyle(.segmented)
+                            .frame(width: 120)
+                        }
+                        settingsRow {
+                            @Bindable var s = settings
+                            Image(systemName: "number")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(NumoColors.textSecondary)
+                                .frame(width: 24)
+                            Text(String(localized: "小数位数"))
+                                .font(.system(size: 16, design: .rounded))
+                            Spacer()
+                            Picker("", selection: $s.decimalPrecision) {
+                                Text(String(localized: "自动")).tag(-1)
+                                Text("2").tag(2)
+                                Text("4").tag(4)
+                                Text("6").tag(6)
+                                Text("8").tag(8)
+                                Text("10").tag(10)
+                            }
+                            .pickerStyle(.menu)
+                            .tint(NumoColors.textSecondary)
+                        }
+                        settingsRow {
+                            @Bindable var s = settings
+                            Image(systemName: "textformat.123")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(NumoColors.textSecondary)
+                                .frame(width: 24)
+                            Text(String(localized: "千分位"))
+                                .font(.system(size: 16, design: .rounded))
+                            Spacer()
+                            Picker("", selection: $s.thousandsSeparatorRaw) {
+                                ForEach(ThousandsSeparator.allCases) { sep in
+                                    Text(sep.displayName).tag(sep.rawValue)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .tint(NumoColors.textSecondary)
+                        }
+                        settingsRow {
+                            @Bindable var s = settings
+                            Image(systemName: "doc.on.doc")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(NumoColors.textSecondary)
+                                .frame(width: 24)
+                            Toggle(isOn: $s.autoCopyResult) {
+                                Text(String(localized: "自动复制结果"))
                                     .font(.system(size: 16, design: .rounded))
-                                Spacer()
-                                Picker("", selection: $s.operatorOnRight) {
-                                    Text(String(localized: "左侧")).tag(false)
-                                    Text(String(localized: "右侧")).tag(true)
-                                }
-                                .pickerStyle(.segmented)
-                                .frame(width: 120)
                             }
-                            settingsRow {
-                                @Bindable var s = settings
-                                Image(systemName: "number")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundStyle(NumoColors.textSecondary)
-                                    .frame(width: 24)
-                                Text(String(localized: "小数位数"))
-                                    .font(.system(size: 16, design: .rounded))
-                                Spacer()
-                                Picker("", selection: $s.decimalPrecision) {
-                                    Text(String(localized: "自动")).tag(-1)
-                                    Text("2").tag(2)
-                                    Text("4").tag(4)
-                                    Text("6").tag(6)
-                                    Text("8").tag(8)
-                                    Text("10").tag(10)
-                                }
-                                .pickerStyle(.menu)
-                                .tint(NumoColors.textSecondary)
-                            }
-                            settingsRow {
-                                @Bindable var s = settings
-                                Image(systemName: "textformat.123")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundStyle(NumoColors.textSecondary)
-                                    .frame(width: 24)
-                                Text(String(localized: "千分位"))
-                                    .font(.system(size: 16, design: .rounded))
-                                Spacer()
-                                Picker("", selection: $s.thousandsSeparatorRaw) {
-                                    ForEach(ThousandsSeparator.allCases) { sep in
-                                        Text(sep.displayName).tag(sep.rawValue)
-                                    }
-                                }
-                                .pickerStyle(.menu)
-                                .tint(NumoColors.textSecondary)
-                            }
-                            settingsRow {
-                                @Bindable var s = settings
-                                Image(systemName: "doc.on.doc")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundStyle(NumoColors.textSecondary)
-                                    .frame(width: 24)
-                                Toggle(isOn: $s.autoCopyResult) {
-                                    Text(String(localized: "自动复制结果"))
-                                        .font(.system(size: 16, design: .rounded))
-                                }
-                                .tint(NumoColors.textSecondary)
-                            }
+                            .tint(NumoColors.textSecondary)
                         }
                     }
+
+                    sectionDivider
 
                     // MARK: - Interaction
                     settingsSection(title: String(localized: "交互")) {
-                        VStack(spacing: 0) {
-                            settingsRow {
-                                @Bindable var s = settings
-                                Image(systemName: "hand.tap")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundStyle(NumoColors.textSecondary)
-                                    .frame(width: 24)
-                                Toggle(isOn: $s.hapticEnabled) {
-                                    Text(String(localized: "触感反馈"))
-                                        .font(.system(size: 16, design: .rounded))
-                                }
-                                .tint(NumoColors.textSecondary)
+                        settingsRow {
+                            @Bindable var s = settings
+                            Image(systemName: "hand.tap")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(NumoColors.textSecondary)
+                                .frame(width: 24)
+                            Toggle(isOn: $s.hapticEnabled) {
+                                Text(String(localized: "触感反馈"))
+                                    .font(.system(size: 16, design: .rounded))
                             }
-                            settingsRow {
-                                @Bindable var s = settings
-                                Image(systemName: "speaker.wave.2")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundStyle(NumoColors.textSecondary)
-                                    .frame(width: 24)
-                                Toggle(isOn: $s.soundEnabled) {
-                                    Text(String(localized: "按键音效"))
-                                        .font(.system(size: 16, design: .rounded))
-                                }
-                                .tint(NumoColors.textSecondary)
+                            .tint(NumoColors.textSecondary)
+                        }
+                        settingsRow {
+                            @Bindable var s = settings
+                            Image(systemName: "speaker.wave.2")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(NumoColors.textSecondary)
+                                .frame(width: 24)
+                            Toggle(isOn: $s.soundEnabled) {
+                                Text(String(localized: "按键音效"))
+                                    .font(.system(size: 16, design: .rounded))
                             }
-                            settingsRow {
-                                @Bindable var s = settings
-                                Image(systemName: "doc.on.clipboard")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundStyle(NumoColors.textSecondary)
-                                    .frame(width: 24)
-                                Toggle(isOn: $s.clipboardDetection) {
-                                    Text(String(localized: "剪贴板识别"))
-                                        .font(.system(size: 16, design: .rounded))
-                                }
-                                .tint(NumoColors.textSecondary)
+                            .tint(NumoColors.textSecondary)
+                        }
+                        settingsRow {
+                            @Bindable var s = settings
+                            Image(systemName: "doc.on.clipboard")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(NumoColors.textSecondary)
+                                .frame(width: 24)
+                            Toggle(isOn: $s.clipboardDetection) {
+                                Text(String(localized: "剪贴板识别"))
+                                    .font(.system(size: 16, design: .rounded))
                             }
+                            .tint(NumoColors.textSecondary)
                         }
                     }
+
+                    sectionDivider
 
                     // MARK: - Appearance
                     settingsSection(title: String(localized: "外观")) {
-                        VStack(spacing: 0) {
-                            settingsRow {
-                                @Bindable var s = settings
-                                Image(systemName: "circle.lefthalf.filled")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundStyle(NumoColors.textSecondary)
-                                    .frame(width: 24)
-                                Text(String(localized: "外观模式"))
-                                    .font(.system(size: 16, design: .rounded))
-                                Spacer()
-                                Picker("", selection: $s.themeRaw) {
-                                    ForEach(AppTheme.allCases) { theme in
-                                        Text(theme.displayName).tag(theme.rawValue)
-                                    }
+                        settingsRow {
+                            @Bindable var s = settings
+                            Image(systemName: "circle.lefthalf.filled")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(NumoColors.textSecondary)
+                                .frame(width: 24)
+                            Text(String(localized: "外观模式"))
+                                .font(.system(size: 16, design: .rounded))
+                            Spacer()
+                            Picker("", selection: $s.themeRaw) {
+                                ForEach(AppTheme.allCases) { theme in
+                                    Text(theme.displayName).tag(theme.rawValue)
                                 }
-                                .pickerStyle(.segmented)
-                                .frame(width: 180)
                             }
+                            .pickerStyle(.segmented)
+                            .frame(width: 180)
                         }
                     }
+
+                    sectionDivider
 
                     // MARK: - Data
                     settingsSection(title: String(localized: "数据")) {
-                        VStack(spacing: 0) {
-                            if !records.isEmpty {
-                                ShareLink(
-                                    item: exportCSV(),
-                                    preview: SharePreview(
-                                        "Numo " + String(localized: "计算历史"),
-                                        image: Image(systemName: "tablecells")
-                                    )
-                                ) {
-                                    settingsRowContent {
-                                        Image(systemName: "square.and.arrow.up")
-                                            .font(.system(size: 16, weight: .medium))
-                                            .foregroundStyle(NumoColors.textSecondary)
-                                            .frame(width: 24)
-                                        Text(String(localized: "导出计算历史"))
-                                            .font(.system(size: 16, design: .rounded))
-                                        Spacer()
-                                        chevron
-                                    }
-                                }
-                                .buttonStyle(.plain)
-                            }
-                            Button {
-                                showClearConfirmation = true
-                            } label: {
-                                settingsRowContent {
-                                    Image(systemName: "trash")
-                                        .font(.system(size: 16, weight: .medium))
-                                        .foregroundStyle(records.isEmpty ? NumoColors.textTertiary : .red.opacity(0.8))
-                                        .frame(width: 24)
-                                    Text(String(localized: "清除计算历史"))
-                                        .font(.system(size: 16, design: .rounded))
-                                        .foregroundStyle(records.isEmpty ? NumoColors.textTertiary : NumoColors.textPrimary)
-                                    Spacer()
-                                    Text(String(localized: "\(records.count) 条"))
-                                        .font(.system(size: 14, design: .rounded))
-                                        .foregroundStyle(NumoColors.textTertiary)
-                                }
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(records.isEmpty)
-                        }
-                    }
-
-                    // MARK: - About
-                    settingsSection(title: String(localized: "关于")) {
-                        VStack(spacing: 0) {
-                            // Rate
-                            Button { requestReview() } label: {
-                                settingsRowContent {
-                                    Image(systemName: "star")
-                                        .font(.system(size: 16, weight: .medium))
-                                        .foregroundStyle(NumoColors.textSecondary)
-                                        .frame(width: 24)
-                                    Text(String(localized: "去 App Store 评分"))
-                                        .font(.system(size: 16, design: .rounded))
-                                    Spacer()
-                                    chevron
-                                }
-                            }
-                            .buttonStyle(.plain)
-
-                            // Share
+                        if !records.isEmpty {
                             ShareLink(
-                                item: URL(string: "https://apps.apple.com/app/numo")!,
+                                item: exportCSV(),
                                 preview: SharePreview(
-                                    "Numo",
-                                    image: Image(systemName: "plus.forwardslash.minus")
+                                    "Numo " + String(localized: "计算历史"),
+                                    image: Image(systemName: "tablecells")
                                 )
                             ) {
                                 settingsRowContent {
@@ -290,69 +208,7 @@ struct SettingsView: View {
                                         .font(.system(size: 16, weight: .medium))
                                         .foregroundStyle(NumoColors.textSecondary)
                                         .frame(width: 24)
-                                    Text(String(localized: "分享给朋友"))
-                                        .font(.system(size: 16, design: .rounded))
-                                    Spacer()
-                                    chevron
-                                }
-                            }
-                            .buttonStyle(.plain)
-
-                            // Feedback
-                            Link(destination: URL(string: "mailto:feedback@numo.app?subject=Numo%20%E5%8F%8D%E9%A6%88")!) {
-                                settingsRowContent {
-                                    Image(systemName: "envelope")
-                                        .font(.system(size: 16, weight: .medium))
-                                        .foregroundStyle(NumoColors.textSecondary)
-                                        .frame(width: 24)
-                                    Text(String(localized: "意见反馈"))
-                                        .font(.system(size: 16, design: .rounded))
-                                    Spacer()
-                                    externalChevron
-                                }
-                            }
-                            .buttonStyle(.plain)
-
-                            // Privacy
-                            Link(destination: URL(string: "https://numo.app/privacy")!) {
-                                settingsRowContent {
-                                    Image(systemName: "hand.raised")
-                                        .font(.system(size: 16, weight: .medium))
-                                        .foregroundStyle(NumoColors.textSecondary)
-                                        .frame(width: 24)
-                                    Text(String(localized: "隐私政策"))
-                                        .font(.system(size: 16, design: .rounded))
-                                    Spacer()
-                                    externalChevron
-                                }
-                            }
-                            .buttonStyle(.plain)
-
-                            // Terms
-                            Link(destination: URL(string: "https://numo.app/terms")!) {
-                                settingsRowContent {
-                                    Image(systemName: "doc.text")
-                                        .font(.system(size: 16, weight: .medium))
-                                        .foregroundStyle(NumoColors.textSecondary)
-                                        .frame(width: 24)
-                                    Text(String(localized: "使用条款"))
-                                        .font(.system(size: 16, design: .rounded))
-                                    Spacer()
-                                    externalChevron
-                                }
-                            }
-                            .buttonStyle(.plain)
-
-                            // Acknowledgements
-                            NavigationLink {
-                                AcknowledgementsView()
-                            } label: {
-                                settingsRowContent {
-                                    Image(systemName: "heart")
-                                        .font(.system(size: 16, weight: .medium))
-                                        .foregroundStyle(NumoColors.textSecondary)
-                                        .frame(width: 24)
-                                    Text(String(localized: "致谢"))
+                                    Text(String(localized: "导出计算历史"))
                                         .font(.system(size: 16, design: .rounded))
                                     Spacer()
                                     chevron
@@ -360,6 +216,122 @@ struct SettingsView: View {
                             }
                             .buttonStyle(.plain)
                         }
+                        Button {
+                            showClearConfirmation = true
+                        } label: {
+                            settingsRowContent {
+                                Image(systemName: "trash")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundStyle(records.isEmpty ? NumoColors.textTertiary : .red.opacity(0.8))
+                                    .frame(width: 24)
+                                Text(String(localized: "清除计算历史"))
+                                    .font(.system(size: 16, design: .rounded))
+                                    .foregroundStyle(records.isEmpty ? NumoColors.textTertiary : NumoColors.textPrimary)
+                                Spacer()
+                                Text(String(localized: "\(records.count) 条"))
+                                    .font(.system(size: 14, design: .rounded))
+                                    .foregroundStyle(NumoColors.textTertiary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(records.isEmpty)
+                    }
+
+                    sectionDivider
+
+                    // MARK: - About
+                    settingsSection(title: String(localized: "关于")) {
+                        Button { requestReview() } label: {
+                            settingsRowContent {
+                                Image(systemName: "star")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundStyle(NumoColors.textSecondary)
+                                    .frame(width: 24)
+                                Text(String(localized: "去 App Store 评分"))
+                                    .font(.system(size: 16, design: .rounded))
+                                Spacer()
+                                chevron
+                            }
+                        }
+                        .buttonStyle(.plain)
+
+                        ShareLink(
+                            item: URL(string: "https://apps.apple.com/app/numo")!,
+                            preview: SharePreview(
+                                "Numo",
+                                image: Image(systemName: "plus.forwardslash.minus")
+                            )
+                        ) {
+                            settingsRowContent {
+                                Image(systemName: "square.and.arrow.up")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundStyle(NumoColors.textSecondary)
+                                    .frame(width: 24)
+                                Text(String(localized: "分享给朋友"))
+                                    .font(.system(size: 16, design: .rounded))
+                                Spacer()
+                                chevron
+                            }
+                        }
+                        .buttonStyle(.plain)
+
+                        Link(destination: URL(string: "mailto:feedback@numo.app?subject=Numo%20%E5%8F%8D%E9%A6%88")!) {
+                            settingsRowContent {
+                                Image(systemName: "envelope")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundStyle(NumoColors.textSecondary)
+                                    .frame(width: 24)
+                                Text(String(localized: "意见反馈"))
+                                    .font(.system(size: 16, design: .rounded))
+                                Spacer()
+                                externalChevron
+                            }
+                        }
+                        .buttonStyle(.plain)
+
+                        Link(destination: URL(string: "https://numo.app/privacy")!) {
+                            settingsRowContent {
+                                Image(systemName: "hand.raised")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundStyle(NumoColors.textSecondary)
+                                    .frame(width: 24)
+                                Text(String(localized: "隐私政策"))
+                                    .font(.system(size: 16, design: .rounded))
+                                Spacer()
+                                externalChevron
+                            }
+                        }
+                        .buttonStyle(.plain)
+
+                        Link(destination: URL(string: "https://numo.app/terms")!) {
+                            settingsRowContent {
+                                Image(systemName: "doc.text")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundStyle(NumoColors.textSecondary)
+                                    .frame(width: 24)
+                                Text(String(localized: "使用条款"))
+                                    .font(.system(size: 16, design: .rounded))
+                                Spacer()
+                                externalChevron
+                            }
+                        }
+                        .buttonStyle(.plain)
+
+                        NavigationLink {
+                            AcknowledgementsView()
+                        } label: {
+                            settingsRowContent {
+                                Image(systemName: "heart")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundStyle(NumoColors.textSecondary)
+                                    .frame(width: 24)
+                                Text(String(localized: "致谢"))
+                                    .font(.system(size: 16, design: .rounded))
+                                Spacer()
+                                chevron
+                            }
+                        }
+                        .buttonStyle(.plain)
                     }
 
                     // MARK: - Footer
@@ -372,12 +344,25 @@ struct SettingsView: View {
                             .foregroundStyle(NumoColors.textTertiary.opacity(0.6))
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.bottom, 12)
+                    .padding(.top, 24)
+                    .padding(.bottom, 20)
                 }
-                .padding(.top, 8)
             }
             .background(NumoColors.surface)
-            .toolbar(.hidden, for: .navigationBar)
+            .navigationTitle(String(localized: "设置"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
             .confirmationDialog(
                 String(localized: "确认清除所有计算历史？"),
                 isPresented: $showClearConfirmation,
@@ -396,13 +381,17 @@ struct SettingsView: View {
 
     /// Section with title header
     private func settingsSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 0) {
             Text(title)
                 .font(.system(size: 13, weight: .regular, design: .rounded))
                 .foregroundStyle(NumoColors.textTertiary)
                 .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .padding(.bottom, 6)
 
             content()
+
+            Spacer(minLength: 8)
         }
     }
 
@@ -423,6 +412,15 @@ struct SettingsView: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .contentShape(Rectangle())
+    }
+
+    /// Thin section divider — padded, not full-width
+    private var sectionDivider: some View {
+        Rectangle()
+            .fill(NumoColors.divider)
+            .frame(height: 0.5)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 4)
     }
 
     /// Internal navigation chevron
