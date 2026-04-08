@@ -61,8 +61,6 @@ final class AppState {
     var selectedTool: Tool = .calculator
     var lastResult: Decimal?
     var isAllToolsPanelOpen: Bool = false
-    var operatorOnRight: Bool = true  // true = operators on right (default)
-
     // MARK: - Favorites
 
     static let defaultFavorites: [Tool] = [.currency, .uppercase, .yoy]

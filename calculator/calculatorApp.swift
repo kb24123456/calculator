@@ -9,13 +9,12 @@ import SwiftUI
 import SwiftData
 
 @main
-struct calculatorApp: App {
+struct NumoApp: App {
     @State private var appState = AppState()
     @State private var hapticService = HapticService()
-
-    init() {
-        NotificationService.shared.requestAuthorizationIfNeeded()
-    }
+    @State private var settingsStore = SettingsStore()
+    @AppStorage("numo_has_seen_onboarding") private var hasSeenOnboarding = false
+    @State private var showOnboarding = false
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
@@ -33,9 +32,29 @@ struct calculatorApp: App {
 
     var body: some Scene {
         WindowGroup {
-            NumoTabView()
-                .environment(appState)
-                .environment(hapticService)
+            ZStack {
+                NumoTabView()
+                    .environment(appState)
+                    .environment(hapticService)
+                    .environment(settingsStore)
+
+                if showOnboarding {
+                    OnboardingView(isPresented: $showOnboarding)
+                        .transition(.opacity)
+                        .zIndex(1)
+                }
+            }
+            .preferredColorScheme(settingsStore.preferredColorScheme)
+            .onAppear {
+                if !hasSeenOnboarding {
+                    showOnboarding = true
+                }
+            }
+            .onChange(of: showOnboarding) { _, newValue in
+                if !newValue {
+                    hasSeenOnboarding = true
+                }
+            }
         }
         .modelContainer(sharedModelContainer)
     }

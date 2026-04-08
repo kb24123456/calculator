@@ -10,6 +10,7 @@ import SwiftData
 
 struct NumoTabView: View {
     @Environment(AppState.self) private var appState
+    @Environment(SettingsStore.self) private var settings
     @Environment(\.modelContext) private var modelContext
 
     // MARK: - Persistent ViewModels
@@ -34,6 +35,13 @@ struct NumoTabView: View {
     @State private var isUnitPickerExpanded = false
     @State private var isDateModeExpanded   = false
     @State private var isMetalsModeExpanded = false
+    @State private var shareImage: UIImage?
+    @State private var showShareSheet = false
+
+    // Clipboard detection
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var clipboardNumber: String?
+    @State private var showClipboardBanner = false
 
     var body: some View {
         NavigationStack {
@@ -51,6 +59,14 @@ struct NumoTabView: View {
                         copyCurrentResult()
                     }
 
+                // MARK: - Clipboard Banner
+                if showClipboardBanner, let number = clipboardNumber {
+                    clipboardBannerView(number: number)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .padding(.horizontal, NumoSpacing.md)
+                        .padding(.bottom, NumoSpacing.xxs)
+                }
+
                 // MARK: - Fixed Keypad
                 if !isKeypadCollapsed {
                     KeypadView(
@@ -61,7 +77,7 @@ struct NumoTabView: View {
                         onPercent: handlePercent,
                         onEquals: handleEquals,
                         onUndo: handleUndo,
-                        operatorOnRight: appState.operatorOnRight,
+                        operatorOnRight: settings.operatorOnRight,
                         canUndo: calculatorVM.canUndo && appState.selectedTool == .calculator
                     )
                     .frame(height: 350)
@@ -112,13 +128,29 @@ struct NumoTabView: View {
                     principalArea
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showSettings = true
-                    } label: {
-                        Image(systemName: "line.3.horizontal")
-                            .font(.system(size: 16, weight: .medium))
+                    HStack(spacing: NumoSpacing.md) {
+                        Button {
+                            shareCurrentResult()
+                        } label: {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 15, weight: .medium))
+                        }
+                        .opacity(currentCopyableResult != nil ? 1 : 0.3)
+                        .disabled(currentCopyableResult == nil)
+
+                        Button {
+                            showSettings = true
+                        } label: {
+                            Image(systemName: "line.3.horizontal")
+                                .font(.system(size: 16, weight: .medium))
+                        }
                     }
                 }
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                detectClipboardNumber()
             }
         }
         .onChange(of: appState.selectedTool) { _, _ in
@@ -146,10 +178,18 @@ struct NumoTabView: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showShareSheet) {
+            if let image = shareImage {
+                ShareSheetView(image: image)
+                    .presentationDetents([.medium])
+                    .presentationDragIndicator(.visible)
+            }
+        }
         .sheet(isPresented: $showSettings) {
-            SettingsSheetView()
+            SettingsView()
                 .environment(appState)
-                .presentationDetents([.fraction(0.5), .large])
+                .environment(settings)
+                .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
     }
@@ -855,6 +895,237 @@ struct NumoTabView: View {
         }
     }
 
+    // MARK: - Share Card
+
+    private var currentShareCardData: ShareCardData? {
+        let tool = appState.selectedTool
+        switch tool {
+        case .calculator:
+            let r = calculatorVM.currentResult
+            guard !r.isEmpty else { return nil }
+            return ShareCardData(
+                toolName: tool.displayName, toolIcon: tool.icon,
+                headline: r, subtitle: nil, detail: nil
+            )
+        case .currency:
+            let r = currencyVM.convertedAmount
+            guard !r.isEmpty else { return nil }
+            return ShareCardData(
+                toolName: tool.displayName, toolIcon: tool.icon,
+                headline: "\(currencyVM.targetCurrency.symbol) \(r)",
+                subtitle: "\(currencyVM.sourceAmount) \(currencyVM.sourceCurrency.code) → \(currencyVM.targetCurrency.code)",
+                detail: currencyVM.rateInfo
+            )
+        case .uppercase:
+            let r = uppercaseVM.uppercaseResult
+            guard !r.isEmpty else { return nil }
+            return ShareCardData(
+                toolName: tool.displayName, toolIcon: tool.icon,
+                headline: r,
+                subtitle: "¥ \(uppercaseVM.inputAmount)",
+                detail: nil
+            )
+        case .yoy:
+            guard let yoy = yoyVM.yoyResult else { return nil }
+            let arrow = yoy.trend == .up ? "↑" : yoy.trend == .down ? "↓" : "→"
+            var sub = "同比 \(ExpressionFormatter.formatSigned(yoy.percentageChange))% \(arrow)"
+            if let mom = yoyVM.momResult {
+                let mArrow = mom.trend == .up ? "↑" : mom.trend == .down ? "↓" : "→"
+                sub += "\n环比 \(ExpressionFormatter.formatSigned(mom.percentageChange))% \(mArrow)"
+            }
+            return ShareCardData(
+                toolName: tool.displayName, toolIcon: tool.icon,
+                headline: ExpressionFormatter.formatSigned(yoy.percentageChange) + "%",
+                subtitle: sub, detail: nil
+            )
+        case .date:
+            let fmt = DateFormatter()
+            fmt.dateStyle = .medium
+            switch dateVM.mode {
+            case .difference:
+                guard let r = dateVM.differenceResult else { return nil }
+                return ShareCardData(
+                    toolName: tool.displayName, toolIcon: tool.icon,
+                    headline: "\(r.days) 天",
+                    subtitle: "\(r.weeks) 周 \(r.remainingDays) 天",
+                    detail: nil
+                )
+            case .offset:
+                guard let d = dateVM.offsetResult else { return nil }
+                return ShareCardData(
+                    toolName: tool.displayName, toolIcon: tool.icon,
+                    headline: fmt.string(from: d),
+                    subtitle: "\(dateVM.offsetDays) 天后",
+                    detail: nil
+                )
+            case .workday:
+                guard let d = dateVM.workdayResult else { return nil }
+                return ShareCardData(
+                    toolName: tool.displayName, toolIcon: tool.icon,
+                    headline: fmt.string(from: d),
+                    subtitle: "\(dateVM.workdayCount) 个工作日后",
+                    detail: nil
+                )
+            }
+        case .unit:
+            let r = unitVM.convertedValue
+            guard !r.isEmpty else { return nil }
+            return ShareCardData(
+                toolName: tool.displayName, toolIcon: tool.icon,
+                headline: "\(r) \(unitVM.targetUnit.symbol)",
+                subtitle: "\(unitVM.sourceValue) \(unitVM.sourceUnit.symbol) =",
+                detail: nil
+            )
+        case .loan:
+            guard let r = loanVM.result else { return nil }
+            return ShareCardData(
+                toolName: tool.displayName, toolIcon: tool.icon,
+                headline: "月供 ¥\(ExpressionFormatter.formatCurrency(r.monthlyPayment))",
+                subtitle: "贷款 \(loanVM.amountText)万 · \(loanVM.termMonths / 12)年 · \(loanVM.annualRateText)%",
+                detail: "总利息 ¥\(ExpressionFormatter.formatCurrency(r.totalInterest))"
+            )
+        case .preciousMetals:
+            switch preciousMetalsVM.mode {
+            case .purchase:
+                let g = preciousMetalsVM.goldGrams
+                guard !g.isEmpty else { return nil }
+                return ShareCardData(
+                    toolName: tool.displayName, toolIcon: tool.icon,
+                    headline: "黄金 \(g) g",
+                    subtitle: "白银 \(preciousMetalsVM.silverGrams) g",
+                    detail: "¥\(preciousMetalsVM.inputAmount) 可购买"
+                )
+            case .salary:
+                guard let rank = preciousMetalsVM.matchedRank else { return nil }
+                return ShareCardData(
+                    toolName: tool.displayName, toolIcon: tool.icon,
+                    headline: rank.title,
+                    subtitle: rank.grade,
+                    detail: "月薪 ¥\(preciousMetalsVM.inputAmount) ≈ 古代\(rank.title)"
+                )
+            }
+        }
+    }
+
+    @MainActor
+    private func shareCurrentResult() {
+        guard let data = currentShareCardData else { return }
+        let card = ShareCardView(data: data)
+        if let image = card.renderImage() {
+            shareImage = image
+            showShareSheet = true
+        }
+    }
+
+    // MARK: - Clipboard Detection
+
+    private func clipboardBannerView(number: String) -> some View {
+        Button {
+            applyClipboardNumber(number)
+        } label: {
+            HStack(spacing: NumoSpacing.xs) {
+                Image(systemName: "doc.on.clipboard")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(NumoColors.accentRed)
+                Text(String(localized: "检测到 \(number)"))
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(NumoColors.textPrimary)
+                    .lineLimit(1)
+                Spacer()
+                Text(String(localized: "填入"))
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(NumoColors.accentRed)
+                Button {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        showClipboardBanner = false
+                    }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(NumoColors.textTertiary)
+                }
+            }
+            .padding(.horizontal, NumoSpacing.md)
+            .padding(.vertical, NumoSpacing.sm)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(NumoColors.surfaceSecondary)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func detectClipboardNumber() {
+        guard settings.clipboardDetection else { return }
+        guard let text = UIPasteboard.general.string else {
+            withAnimation { showClipboardBanner = false }
+            return
+        }
+        // Extract a number from the clipboard (remove currency symbols, spaces, commas)
+        let cleaned = text
+            .replacingOccurrences(of: "[¥$€£₩,，\\s]", with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespaces)
+        // Validate: must be a valid decimal number
+        guard let _ = Decimal(string: cleaned), !cleaned.isEmpty,
+              cleaned.count <= 15 else {
+            withAnimation { showClipboardBanner = false }
+            return
+        }
+        // Don't show if it's the same as current input
+        clipboardNumber = cleaned
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+            showClipboardBanner = true
+        }
+        // Auto-dismiss after 8 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
+            withAnimation(.easeOut(duration: 0.2)) {
+                showClipboardBanner = false
+            }
+        }
+    }
+
+    private func applyClipboardNumber(_ number: String) {
+        withAnimation(.easeOut(duration: 0.2)) {
+            showClipboardBanner = false
+        }
+        // Fill the current tool's input field
+        switch appState.selectedTool {
+        case .calculator:
+            calculatorVM.clear()
+            for char in number {
+                calculatorVM.appendCharacter(String(char))
+            }
+        case .currency:
+            currencyVM.sourceAmount = number
+            currencyVM.convert()
+        case .uppercase:
+            uppercaseVM.inputAmount = number
+            uppercaseVM.convert()
+        case .yoy:
+            yoyVM.currentValueText = number
+            yoyVM.calculate()
+        case .date:
+            switch dateVM.mode {
+            case .difference: break
+            case .offset:
+                dateVM.offsetDays = number
+                dateVM.calculateOffset()
+            case .workday:
+                dateVM.workdayCount = number
+                dateVM.calculateWorkday()
+            }
+        case .unit:
+            unitVM.sourceValue = number
+            unitVM.convert()
+        case .loan:
+            loanVM.amountText = number
+            loanVM.calculate()
+        case .preciousMetals:
+            preciousMetalsVM.inputAmount = number
+            preciousMetalsVM.convert()
+        }
+    }
+
     private func collapseKeypad() {
         guard !isKeypadCollapsed else { return }
         withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
@@ -1073,74 +1344,9 @@ struct HistorySheetView: View {
     }
 }
 
-// MARK: - Settings Sheet
-
-struct SettingsSheetView: View {
-    @Environment(AppState.self) private var appState
-
-    var body: some View {
-        NavigationStack {
-            List {
-                // MARK: Favorites Management
-                Section {
-                    ForEach(appState.favoriteTools) { tool in
-                        HStack(spacing: NumoSpacing.sm) {
-                            Image(systemName: tool.icon)
-                                .font(.system(size: 16))
-                                .foregroundStyle(NumoColors.textSecondary)
-                                .frame(width: 24)
-                            Text(tool.displayName)
-                                .font(NumoTypography.bodyMedium)
-                            Spacer()
-                            if appState.favoriteTools.count > 1 {
-                                Button {
-                                    withAnimation {
-                                        appState.toggleFavorite(tool)
-                                    }
-                                } label: {
-                                    Image(systemName: "minus.circle.fill")
-                                        .foregroundStyle(NumoColors.danger)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
-                    .onMove { source, destination in
-                        appState.moveFavorite(from: source, to: destination)
-                    }
-                } header: {
-                    Text(String(localized: "快捷工具"))
-                } footer: {
-                    Text(String(localized: "长按拖动可调整顺序"))
-                }
-
-                // MARK: Keyboard Layout
-                Section {
-                    @Bindable var state = appState
-                    HStack {
-                        Label(String(localized: "运算符位置"), systemImage: "keyboard")
-                        Spacer()
-                        Picker("", selection: $state.operatorOnRight) {
-                            Text(String(localized: "左侧")).tag(false)
-                            Text(String(localized: "右侧")).tag(true)
-                        }
-                        .pickerStyle(.segmented)
-                        .frame(width: 140)
-                    }
-                } header: {
-                    Text(String(localized: "键盘布局"))
-                }
-            }
-            .navigationTitle(String(localized: "设置"))
-            .navigationBarTitleDisplayMode(.inline)
-            .environment(\.editMode, .constant(.active))
-        }
-    }
-}
-
-
 #Preview {
     NumoTabView()
         .environment(AppState())
         .environment(HapticService())
+        .environment(SettingsStore())
 }
