@@ -20,6 +20,17 @@ struct SettingsView: View {
 
     @State private var showClearConfirmation = false
 
+    /// 直接订阅 AppStorage，让设置页内也能实时跟随外观切换
+    @AppStorage("numo_theme") private var localThemeRaw: String = "system"
+
+    private var colorSchemeForView: ColorScheme? {
+        switch localThemeRaw {
+        case "light": .light
+        case "dark":  .dark
+        default:      nil
+        }
+    }
+
     /// All tools except calculator — these are the ones users can toggle on/off
     private var toggleableTools: [Tool] {
         Tool.allCases.filter { $0 != .calculator }
@@ -50,7 +61,7 @@ struct SettingsView: View {
                                     }
                                 ))
                                 .labelsHidden()
-                                .tint(NumoColors.textSecondary)
+                                .tint(NumoColors.settingsBlue)
                                 .accessibilityLabel(tool.displayName)
                             }
                         }
@@ -94,7 +105,7 @@ struct SettingsView: View {
                                 Text("10").tag(10)
                             }
                             .pickerStyle(.menu)
-                            .tint(NumoColors.textSecondary)
+                            .tint(NumoColors.settingsBlue)
                         }
                         settingsRow {
                             @Bindable var s = settings
@@ -111,7 +122,7 @@ struct SettingsView: View {
                                 }
                             }
                             .pickerStyle(.menu)
-                            .tint(NumoColors.textSecondary)
+                            .tint(NumoColors.settingsBlue)
                         }
                         settingsRow {
                             @Bindable var s = settings
@@ -123,7 +134,7 @@ struct SettingsView: View {
                                 Text(String(localized: "自动复制结果"))
                                     .font(.system(size: 16, design: .rounded))
                             }
-                            .tint(NumoColors.textSecondary)
+                            .tint(NumoColors.settingsBlue)
                         }
                     }
 
@@ -141,7 +152,7 @@ struct SettingsView: View {
                                 Text(String(localized: "触感反馈"))
                                     .font(.system(size: 16, design: .rounded))
                             }
-                            .tint(NumoColors.textSecondary)
+                            .tint(NumoColors.settingsBlue)
                         }
                         settingsRow {
                             @Bindable var s = settings
@@ -153,7 +164,7 @@ struct SettingsView: View {
                                 Text(String(localized: "按键音效"))
                                     .font(.system(size: 16, design: .rounded))
                             }
-                            .tint(NumoColors.textSecondary)
+                            .tint(NumoColors.settingsBlue)
                         }
                         settingsRow {
                             @Bindable var s = settings
@@ -165,7 +176,7 @@ struct SettingsView: View {
                                 Text(String(localized: "剪贴板识别"))
                                     .font(.system(size: 16, design: .rounded))
                             }
-                            .tint(NumoColors.textSecondary)
+                            .tint(NumoColors.settingsBlue)
                         }
                     }
 
@@ -184,11 +195,11 @@ struct SettingsView: View {
                             Spacer()
                             Picker(String(localized: "外观模式"), selection: $s.themeRaw) {
                                 ForEach(AppTheme.allCases) { theme in
-                                    Text(theme.displayName).tag(theme.rawValue)
+                                    Image(systemName: theme.sfSymbol).tag(theme.rawValue)
                                 }
                             }
                             .pickerStyle(.segmented)
-                            .frame(width: 180)
+                            .frame(width: 120)
                         }
                     }
 
@@ -376,6 +387,7 @@ struct SettingsView: View {
                 Text(String(localized: "此操作不可撤销"))
             }
         }
+        .preferredColorScheme(colorSchemeForView)
     }
 
     // MARK: - Design Components

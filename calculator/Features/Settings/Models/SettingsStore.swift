@@ -95,4 +95,12 @@ enum AppTheme: String, CaseIterable, Identifiable {
         case .dark: String(localized: "深色")
         }
     }
+
+    var sfSymbol: String {
+        switch self {
+        case .system: "circle.lefthalf.filled"
+        case .light:  "sun.max"
+        case .dark:   "moon"
+        }
+    }
 }

@@ -44,6 +44,10 @@ enum NumoColors {
     static let chipDefaultText = Color(light: .init(red: 0.24, green: 0.24, blue: 0.26).opacity(0.6),
                                         dark: .init(red: 0.92, green: 0.92, blue: 0.96).opacity(0.6))
 
+    // MARK: - Settings UI
+    /// 中性蓝，用于设置页 Toggle / Picker 强调色，深浅色均保持良好可读性
+    static let settingsBlue = Color(uiColor: .systemBlue)
+
     // MARK: - Semantic
     // 刻意回避正红/正绿的"股票盘面感"：
     // success → 深邃的青苔翠绿（Teal-Emerald），带冷色调，沉稳克制；
