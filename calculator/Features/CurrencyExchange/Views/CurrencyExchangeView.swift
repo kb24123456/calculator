@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 struct CurrencyExchangeView: View {
     @Bindable var viewModel: CurrencyExchangeViewModel
@@ -14,6 +15,9 @@ struct CurrencyExchangeView: View {
     @State private var sourceSlide: CGFloat = 0
     @State private var targetSlide: CGFloat = 0
 
+    // Blinking cursor
+    @State private var cursorVisible: Bool = true
+
     var body: some View {
         VStack(spacing: NumoSpacing.md) {
             Spacer(minLength: 0)
@@ -21,12 +25,13 @@ struct CurrencyExchangeView: View {
             // MARK: - Unified Exchange Card
             ZStack(alignment: .center) {
                 VStack(spacing: 0) {
-                    // Source half — clipped so slide stays within bounds
+                    // Source half
                     ZStack {
                         halfContent(
                             currency: viewModel.sourceCurrency,
-                            amount: viewModel.sourceAmount.isEmpty ? "0" : viewModel.sourceAmount,
+                            amount: sourceDisplayAmount,
                             isSource: true,
+                            isActive: viewModel.activeInput == .source,
                             onSelect: { selected in
                                 viewModel.sourceCurrency = selected
                                 viewModel.convert()
@@ -36,15 +41,22 @@ struct CurrencyExchangeView: View {
                     }
                     .frame(maxWidth: .infinity, minHeight: 130)
                     .clipped()
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            viewModel.setActive(.source)
+                        }
+                    }
 
                     Divider()
 
-                    // Target half — clipped so slide stays within bounds
+                    // Target half
                     ZStack {
                         halfContent(
                             currency: viewModel.targetCurrency,
-                            amount: viewModel.convertedAmount.isEmpty ? "0" : viewModel.convertedAmount,
+                            amount: targetDisplayAmount,
                             isSource: false,
+                            isActive: viewModel.activeInput == .target,
                             onSelect: { selected in
                                 viewModel.targetCurrency = selected
                                 viewModel.convert()
@@ -54,6 +66,12 @@ struct CurrencyExchangeView: View {
                     }
                     .frame(maxWidth: .infinity, minHeight: 130)
                     .clipped()
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            viewModel.setActive(.target)
+                        }
+                    }
                 }
                 .background(
                     RoundedRectangle(cornerRadius: 28, style: .continuous)
@@ -76,24 +94,47 @@ struct CurrencyExchangeView: View {
         .task {
             await viewModel.loadRates()
         }
+        .onReceive(Timer.publish(every: 0.53, on: .main, in: .common).autoconnect()) { _ in
+            cursorVisible.toggle()
+        }
     }
 
-    // MARK: - Half Content (selector + faint symbol + big amount)
+    // MARK: - Display amount helpers
+
+    private var sourceDisplayAmount: String {
+        switch viewModel.activeInput {
+        case .source:
+            return viewModel.sourceAmount.isEmpty ? "0" : viewModel.sourceAmount
+        case .target:
+            return viewModel.sourceResult.isEmpty ? "0" : viewModel.sourceResult
+        }
+    }
+
+    private var targetDisplayAmount: String {
+        switch viewModel.activeInput {
+        case .source:
+            return viewModel.convertedAmount.isEmpty ? "0" : viewModel.convertedAmount
+        case .target:
+            return viewModel.targetAmount.isEmpty ? "0" : viewModel.targetAmount
+        }
+    }
+
+    // MARK: - Half Content
 
     private func halfContent(
         currency: CurrencyInfo,
         amount: String,
         isSource: Bool,
+        isActive: Bool,
         onSelect: @escaping (CurrencyInfo) -> Void
     ) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Currency selector: 🇺🇸 USD · 美元  ˅
             currencySelector(currency: currency, onSelect: onSelect)
 
             Spacer(minLength: NumoSpacing.xs)
 
-            // Amount row: faint symbol prefix + big number
             HStack(alignment: .firstTextBaseline, spacing: 4) {
+                // Faint currency symbol prefix
                 Text(currency.symbol)
                     .font(.system(
                         size: isSource ? 34 : 28,
@@ -106,6 +147,7 @@ struct CurrencyExchangeView: View {
                     )
                     .animation(.easeInOut(duration: 0.2), value: currency.symbol)
 
+                // Amount
                 Text(amount)
                     .font(
                         isSource
@@ -117,6 +159,21 @@ struct CurrencyExchangeView: View {
                     .minimumScaleFactor(0.38)
                     .contentTransition(.numericText())
                     .animation(.easeInOut(duration: 0.2), value: amount)
+
+                // Blinking cursor — only when this half is active
+                if isActive {
+                    Text("|")
+                        .font(
+                            isSource
+                                ? .system(size: 64, weight: .light, design: .rounded)
+                                : .system(size: 52, weight: .light, design: .rounded)
+                        )
+                        .foregroundStyle(
+                            (isSource ? NumoColors.textPrimary : NumoColors.textSecondary)
+                                .opacity(0.5)
+                        )
+                        .opacity(cursorVisible ? 1 : 0)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
@@ -125,7 +182,7 @@ struct CurrencyExchangeView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // MARK: - Currency Selector (horizontal single line)
+    // MARK: - Currency Selector
 
     private func currencySelector(
         currency: CurrencyInfo,
@@ -152,7 +209,7 @@ struct CurrencyExchangeView: View {
         }
     }
 
-    // MARK: - Swap Button with staggered spring animation
+    // MARK: - Swap Button
 
     private var swapButton: some View {
         Button {
@@ -172,27 +229,23 @@ struct CurrencyExchangeView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Swap with staggered spring physics
+    // MARK: - Swap animation
 
     private func doSwap() {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.8)
 
-        // Phase 1: both halves slide toward the divider
         withAnimation(.easeIn(duration: 0.11)) {
             sourceSlide = 20
             targetSlide = -20
         }
 
-        // Phase 2: swap data, then spring each half back with offset timing
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.09) {
             viewModel.swapCurrencies()
 
-            // Source springs back — leads
             withAnimation(.spring(response: 0.44, dampingFraction: 0.56)) {
                 sourceSlide = 0
                 swapRotation += 180
             }
-            // Target springs back — follows with slight delay
             withAnimation(.spring(response: 0.50, dampingFraction: 0.52).delay(0.05)) {
                 targetSlide = 0
             }

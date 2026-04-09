@@ -621,8 +621,14 @@ struct NumoTabView: View {
         case .calculator:
             calculatorVM.appendCharacter(char)
         case .currency:
-            appendDigit(to: &currencyVM.sourceAmount, char: char)
-            currencyVM.convert()
+            switch currencyVM.activeInput {
+            case .source:
+                appendDigit(to: &currencyVM.sourceAmount, char: char)
+                currencyVM.convertFromSource()
+            case .target:
+                appendDigit(to: &currencyVM.targetAmount, char: char)
+                currencyVM.convertFromTarget()
+            }
         case .uppercase:
             appendDigit(to: &uppercaseVM.inputAmount, char: char)
             uppercaseVM.convert()
@@ -693,8 +699,14 @@ struct NumoTabView: View {
         case .calculator:
             calculatorVM.deleteBackward()
         case .currency:
-            deleteLastDigit(from: &currencyVM.sourceAmount)
-            currencyVM.convert()
+            switch currencyVM.activeInput {
+            case .source:
+                deleteLastDigit(from: &currencyVM.sourceAmount)
+                currencyVM.convertFromSource()
+            case .target:
+                deleteLastDigit(from: &currencyVM.targetAmount)
+                currencyVM.convertFromTarget()
+            }
         case .uppercase:
             deleteLastDigit(from: &uppercaseVM.inputAmount)
             uppercaseVM.convert()
@@ -750,8 +762,14 @@ struct NumoTabView: View {
         case .calculator:
             calculatorVM.clear()
         case .currency:
-            currencyVM.sourceAmount = ""
-            currencyVM.convert()
+            switch currencyVM.activeInput {
+            case .source:
+                currencyVM.sourceAmount = ""
+                currencyVM.convertFromSource()
+            case .target:
+                currencyVM.targetAmount = ""
+                currencyVM.convertFromTarget()
+            }
         case .uppercase:
             uppercaseVM.inputAmount = ""
             uppercaseVM.convert()
@@ -1118,8 +1136,9 @@ struct NumoTabView: View {
                 calculatorVM.appendCharacter(String(char))
             }
         case .currency:
+            currencyVM.activeInput = .source
             currencyVM.sourceAmount = number
-            currencyVM.convert()
+            currencyVM.convertFromSource()
         case .uppercase:
             uppercaseVM.inputAmount = number
             uppercaseVM.convert()
