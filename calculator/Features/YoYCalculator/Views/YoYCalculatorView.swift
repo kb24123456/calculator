@@ -6,11 +6,14 @@
 //
 
 import SwiftUI
+import Combine
 
 /// Display-only YoY/MoM dashboard view. Keypad input managed by NumoTabView.
 struct YoYCalculatorView: View {
     let viewModel: YoYCalculatorViewModel
     @Binding var activeField: ToolInputField
+
+    @State private var cursorVisible: Bool = true
 
     var body: some View {
         VStack(spacing: 12) {
@@ -39,6 +42,9 @@ struct YoYCalculatorView: View {
 
             Spacer(minLength: 0)
         }
+        .onReceive(Timer.publish(every: 0.53, on: .main, in: .common).autoconnect()) { _ in
+            cursorVisible.toggle()
+        }
     }
 
     // MARK: — Anchor Card
@@ -51,14 +57,22 @@ struct YoYCalculatorView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Text(formattedNumber(viewModel.currentValueText))
-                    .font(.system(size: 56, weight: .bold, design: .rounded).monospacedDigit())
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.4)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .contentTransition(.numericText())
-                    .animation(.easeInOut(duration: 0.15), value: viewModel.currentValueText)
+                HStack(alignment: .firstTextBaseline, spacing: 1) {
+                    Spacer(minLength: 0)
+                    Text(formattedNumber(viewModel.currentValueText))
+                        .font(.system(size: 56, weight: .bold, design: .rounded).monospacedDigit())
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.4)
+                        .contentTransition(.numericText())
+                        .animation(.easeInOut(duration: 0.15), value: viewModel.currentValueText)
+                    if isActive {
+                        Text("|")
+                            .font(.system(size: 56, weight: .light, design: .rounded))
+                            .foregroundStyle(Color.primary.opacity(0.45))
+                            .opacity(cursorVisible ? 1 : 0)
+                    }
+                }
             }
             .padding(.horizontal, NumoSpacing.md)
             .padding(.vertical, NumoSpacing.sm)
@@ -99,15 +113,23 @@ struct YoYCalculatorView: View {
                             .foregroundStyle(.tertiary)
                     }
 
-                    Text(formattedNumber(valueText))
-                        .font(.system(size: 22, weight: .semibold, design: .rounded).monospacedDigit())
-                        .foregroundStyle(isActive ? .primary : .secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .contentTransition(.numericText())
-                        .animation(.easeInOut(duration: 0.15), value: valueText)
-                        .padding(.top, NumoSpacing.xxs)
+                    HStack(alignment: .firstTextBaseline, spacing: 1) {
+                        Spacer(minLength: 0)
+                        Text(formattedNumber(valueText))
+                            .font(.system(size: 22, weight: .semibold, design: .rounded).monospacedDigit())
+                            .foregroundStyle(isActive ? .primary : .secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                            .contentTransition(.numericText())
+                            .animation(.easeInOut(duration: 0.15), value: valueText)
+                        if isActive {
+                            Text("|")
+                                .font(.system(size: 22, weight: .light, design: .rounded))
+                                .foregroundStyle(Color.primary.opacity(0.45))
+                                .opacity(cursorVisible ? 1 : 0)
+                        }
+                    }
+                    .padding(.top, NumoSpacing.xxs)
                 }
                 .padding(.horizontal, NumoSpacing.sm)
                 .padding(.top, NumoSpacing.sm)

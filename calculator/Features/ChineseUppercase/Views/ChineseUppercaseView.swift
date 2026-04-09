@@ -6,11 +6,14 @@
 //
 
 import SwiftUI
+import Combine
 
 /// Display-only Chinese uppercase view. Keypad input managed by NumoTabView.
 /// 长按数字区 → 粘贴；长按结果区 → 复制（由 NumoTabView 全局处理）。
 struct ChineseUppercaseView: View {
     let viewModel: ChineseUppercaseViewModel
+
+    @State private var cursorVisible: Bool = true
 
     private var isEmpty: Bool { viewModel.inputAmount.isEmpty }
 
@@ -23,17 +26,24 @@ struct ChineseUppercaseView: View {
             // 空态：灰色休眠；有值：深黑激活。
             // 右对齐，千位分隔符，48pt Rounded Semibold Mono。
             // 长按触发粘贴，优先级高于外层全局长按复制。
-            Text(formattedInput)
-                .font(.system(size: 48, weight: .semibold, design: .rounded).monospacedDigit())
-                .foregroundStyle(isEmpty ? Color.secondary.opacity(0.35) : Color.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.4)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .contentTransition(.numericText())
-                .animation(.easeInOut(duration: 0.15), value: viewModel.inputAmount)
-                .onLongPressGesture(minimumDuration: 0.4) {
-                    pasteFromClipboard()
-                }
+            HStack(alignment: .firstTextBaseline, spacing: 1) {
+                Spacer(minLength: 0)
+                Text(formattedInput)
+                    .font(.system(size: 48, weight: .semibold, design: .rounded).monospacedDigit())
+                    .foregroundStyle(isEmpty ? Color.secondary.opacity(0.35) : Color.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.4)
+                    .contentTransition(.numericText())
+                    .animation(.easeInOut(duration: 0.15), value: viewModel.inputAmount)
+                Text("|")
+                    .font(.system(size: 48, weight: .light, design: .rounded))
+                    .foregroundStyle(Color.primary.opacity(0.45))
+                    .opacity(cursorVisible ? 1 : 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .onLongPressGesture(minimumDuration: 0.4) {
+                pasteFromClipboard()
+            }
 
             // MARK: — Paste Hint
             HStack(spacing: 4) {
@@ -109,6 +119,9 @@ struct ChineseUppercaseView: View {
             .animation(.easeInOut(duration: 0.25), value: isEmpty)
 
             Spacer()
+        }
+        .onReceive(Timer.publish(every: 0.53, on: .main, in: .common).autoconnect()) { _ in
+            cursorVisible.toggle()
         }
     }
 

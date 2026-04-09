@@ -655,8 +655,14 @@ struct NumoTabView: View {
                 dateVM.calculateWorkday()
             }
         case .unit:
-            appendDigit(to: &unitVM.sourceValue, char: char)
-            unitVM.convert()
+            switch unitVM.activeInput {
+            case .source:
+                appendDigit(to: &unitVM.sourceValue, char: char)
+                unitVM.convertFromSource()
+            case .target:
+                appendDigit(to: &unitVM.targetValue, char: char)
+                unitVM.convertFromTarget()
+            }
         case .loan:
             switch activeField {
             case .primary:
@@ -733,8 +739,14 @@ struct NumoTabView: View {
                 dateVM.calculateWorkday()
             }
         case .unit:
-            deleteLastDigit(from: &unitVM.sourceValue)
-            unitVM.convert()
+            switch unitVM.activeInput {
+            case .source:
+                deleteLastDigit(from: &unitVM.sourceValue)
+                unitVM.convertFromSource()
+            case .target:
+                deleteLastDigit(from: &unitVM.targetValue)
+                unitVM.convertFromTarget()
+            }
         case .loan:
             switch activeField {
             case .primary:
@@ -796,8 +808,14 @@ struct NumoTabView: View {
                 dateVM.calculateWorkday()
             }
         case .unit:
-            unitVM.sourceValue = ""
-            unitVM.convert()
+            switch unitVM.activeInput {
+            case .source:
+                unitVM.sourceValue = ""
+                unitVM.convertFromSource()
+            case .target:
+                unitVM.targetValue = ""
+                unitVM.convertFromTarget()
+            }
         case .loan:
             switch activeField {
             case .primary:

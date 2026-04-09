@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 /// Display-only unit converter view.
 /// Category switching lives in the global HUD Menu (NumoTabView).
@@ -16,20 +17,22 @@ struct UnitConverterView: View {
     @State private var swapRotation: Double = 0
     @State private var sourceSlide: CGFloat = 0
     @State private var targetSlide: CGFloat = 0
+    @State private var cursorVisible: Bool = true
 
     var body: some View {
         VStack(spacing: NumoSpacing.md) {
             Spacer(minLength: 0)
 
-            // MARK: - Hero Card (mirrors CurrencyExchangeView layout)
+            // MARK: - Hero Card
             ZStack(alignment: .center) {
                 VStack(spacing: 0) {
-                    // Source half — clipped so slide stays within bounds
+                    // Source half
                     ZStack {
                         halfContent(
                             unit: viewModel.sourceUnit,
-                            amount: viewModel.sourceValue.isEmpty ? "0" : viewModel.sourceValue,
-                            isSource: true
+                            amount: sourceDisplayAmount,
+                            isSource: true,
+                            isActive: viewModel.activeInput == .source
                         ) { selected in
                             viewModel.sourceUnit = selected
                             viewModel.convert()
@@ -38,15 +41,22 @@ struct UnitConverterView: View {
                     }
                     .frame(maxWidth: .infinity, minHeight: 130)
                     .clipped()
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            viewModel.setActive(.source)
+                        }
+                    }
 
                     Divider()
 
-                    // Target half — clipped so slide stays within bounds
+                    // Target half
                     ZStack {
                         halfContent(
                             unit: viewModel.targetUnit,
-                            amount: viewModel.convertedValue.isEmpty ? "0" : viewModel.convertedValue,
-                            isSource: false
+                            amount: targetDisplayAmount,
+                            isSource: false,
+                            isActive: viewModel.activeInput == .target
                         ) { selected in
                             viewModel.targetUnit = selected
                             viewModel.convert()
@@ -55,35 +65,58 @@ struct UnitConverterView: View {
                     }
                     .frame(maxWidth: .infinity, minHeight: 130)
                     .clipped()
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            viewModel.setActive(.target)
+                        }
+                    }
                 }
                 .background(
                     RoundedRectangle(cornerRadius: 28, style: .continuous)
                         .fill(NumoColors.surfaceSecondary)
                 )
 
-                // Floating swap button centered on Divider
                 swapButton
             }
 
             Spacer(minLength: 0)
         }
+        .onReceive(Timer.publish(every: 0.53, on: .main, in: .common).autoconnect()) { _ in
+            cursorVisible.toggle()
+        }
     }
 
-    // MARK: - Half Content (selector + faint symbol + big amount)
+    // MARK: - Display amount helpers
+
+    private var sourceDisplayAmount: String {
+        switch viewModel.activeInput {
+        case .source: return viewModel.sourceValue.isEmpty ? "0" : viewModel.sourceValue
+        case .target: return viewModel.sourceResult.isEmpty ? "0" : viewModel.sourceResult
+        }
+    }
+
+    private var targetDisplayAmount: String {
+        switch viewModel.activeInput {
+        case .source: return viewModel.convertedValue.isEmpty ? "0" : viewModel.convertedValue
+        case .target: return viewModel.targetValue.isEmpty ? "0" : viewModel.targetValue
+        }
+    }
+
+    // MARK: - Half Content
 
     private func halfContent(
         unit: UnitDefinition,
         amount: String,
         isSource: Bool,
+        isActive: Bool,
         onSelect: @escaping (UnitDefinition) -> Void
     ) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Unit selector: 📐 米  m  ˅
             unitSelector(unit: unit, onSelect: onSelect)
 
             Spacer(minLength: NumoSpacing.xs)
 
-            // Amount row: faint symbol prefix + big number
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(amount)
                     .font(
@@ -97,6 +130,7 @@ struct UnitConverterView: View {
                     .contentTransition(.numericText())
                     .animation(.easeInOut(duration: 0.2), value: amount)
 
+                // Faint unit symbol suffix
                 Text(unit.symbol)
                     .font(.system(
                         size: isSource ? 34 : 28,
@@ -108,6 +142,21 @@ struct UnitConverterView: View {
                             .opacity(0.14)
                     )
                     .animation(.easeInOut(duration: 0.2), value: unit.symbol)
+
+                // Blinking cursor
+                if isActive {
+                    Text("|")
+                        .font(
+                            isSource
+                                ? .system(size: 64, weight: .light, design: .rounded)
+                                : .system(size: 52, weight: .light, design: .rounded)
+                        )
+                        .foregroundStyle(
+                            (isSource ? NumoColors.textPrimary : NumoColors.textSecondary)
+                                .opacity(0.5)
+                        )
+                        .opacity(cursorVisible ? 1 : 0)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
@@ -116,7 +165,7 @@ struct UnitConverterView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // MARK: - Unit Selector (SF Symbol + name + symbol + chevron)
+    // MARK: - Unit Selector
 
     private func unitSelector(
         unit: UnitDefinition,
@@ -124,9 +173,7 @@ struct UnitConverterView: View {
     ) -> some View {
         Menu {
             ForEach(viewModel.selectedCategory.units) { u in
-                Button {
-                    onSelect(u)
-                } label: {
+                Button { onSelect(u) } label: {
                     Text("\(u.nameKey)  \(u.symbol)")
                 }
             }
@@ -150,12 +197,10 @@ struct UnitConverterView: View {
         }
     }
 
-    // MARK: - Swap Button with rotation
+    // MARK: - Swap Button
 
     private var swapButton: some View {
-        Button {
-            doSwap()
-        } label: {
+        Button { doSwap() } label: {
             Image(systemName: "arrow.up.arrow.down")
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(NumoColors.textSecondary)
@@ -170,27 +215,16 @@ struct UnitConverterView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Staggered spring swap (identical physics to CurrencyExchangeView)
-
     private func doSwap() {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.8)
-
-        // Phase 1: both halves slide toward the divider
         withAnimation(.easeIn(duration: 0.11)) {
-            sourceSlide = 20
-            targetSlide = -20
+            sourceSlide = 20; targetSlide = -20
         }
-
-        // Phase 2: swap data, then spring each half back with offset timing
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.09) {
             viewModel.swapUnits()
-
-            // Source springs back — leads
             withAnimation(.spring(response: 0.44, dampingFraction: 0.56)) {
-                sourceSlide = 0
-                swapRotation += 180
+                sourceSlide = 0; swapRotation += 180
             }
-            // Target springs back — follows with slight delay
             withAnimation(.spring(response: 0.50, dampingFraction: 0.52).delay(0.05)) {
                 targetSlide = 0
             }

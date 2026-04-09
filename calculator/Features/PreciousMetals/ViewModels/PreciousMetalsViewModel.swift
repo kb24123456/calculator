@@ -7,21 +7,34 @@
 
 import SwiftUI
 
+/// 买入模式三向输入：¥ → 克重、金克重 → ¥、银克重 → ¥
+enum PreciousMetalsInputField { case money, gold, silver }
+
 @Observable
 final class PreciousMetalsViewModel {
     var mode: PreciousMetalsMode = .purchase
 
-    // Input (shared across modes)
+    // MARK: - Active input (purchase mode only)
+
+    var activeInput: PreciousMetalsInputField = .money
+
+    // MARK: - Raw input (always routed here by keypad)
+
     var inputAmount: String = ""
 
-    // Purchase mode outputs
+    // MARK: - Purchase mode outputs
+
     var goldGrams: String = ""
     var silverGrams: String = ""
+    /// Computed ¥ when gold or silver is the active input
+    var moneyResult: String = ""
 
-    // Salary mode output
+    // MARK: - Salary mode output
+
     var matchedRank: AncientRank?
 
-    // Price state
+    // MARK: - Price state
+
     var metalPrice: MetalPrice = MetalPrice(
         goldPerGram: Constants.PreciousMetals.fallbackGoldPricePerGram,
         silverPerGram: Constants.PreciousMetals.fallbackSilverPricePerGram,
@@ -29,9 +42,11 @@ final class PreciousMetalsViewModel {
         isLive: false
     )
     var isLoading: Bool = false
-    var loadFailed: Bool = false   // true if last fetch failed (showing fallback)
+    var loadFailed: Bool = false
 
     private let service: MetalPriceServiceProtocol = MetalPriceServiceImpl()
+
+    // MARK: - Load
 
     func loadPrices() async {
         isLoading = true
@@ -40,46 +55,82 @@ final class PreciousMetalsViewModel {
             metalPrice = try await service.fetchPrices()
             convert()
         } catch {
-            loadFailed = true   // keep existing prices (fallback or last live)
+            loadFailed = true
         }
         isLoading = false
     }
 
+    // MARK: - Convert dispatch
+
     func convert() {
         switch mode {
         case .purchase:
-            convertPurchase()
+            switch activeInput {
+            case .money:  convertFromMoney()
+            case .gold:   convertFromGold()
+            case .silver: convertFromSilver()
+            }
         case .salary:
             convertSalary()
         }
     }
 
-    private func convertPurchase() {
+    private func convertFromMoney() {
         let cleaned = inputAmount.withoutGroupingSeparators
         guard !cleaned.isEmpty, let value = Decimal(string: cleaned), value > 0 else {
-            goldGrams = ""
-            silverGrams = ""
-            return
+            goldGrams = ""; silverGrams = ""; return
         }
+        goldGrams   = ExpressionFormatter.format(value / metalPrice.goldPerGram,  maxDecimalPlaces: 2)
+        silverGrams = ExpressionFormatter.format(value / metalPrice.silverPerGram, maxDecimalPlaces: 2)
+        moneyResult = ""
+    }
 
-        let gold = value / metalPrice.goldPerGram
-        let silver = value / metalPrice.silverPerGram
+    private func convertFromGold() {
+        let cleaned = inputAmount.withoutGroupingSeparators
+        guard !cleaned.isEmpty, let grams = Decimal(string: cleaned), grams > 0 else {
+            moneyResult = ""; silverGrams = ""; return
+        }
+        let money = grams * metalPrice.goldPerGram
+        moneyResult = ExpressionFormatter.format(money, maxDecimalPlaces: 2)
+        silverGrams = ExpressionFormatter.format(money / metalPrice.silverPerGram, maxDecimalPlaces: 2)
+        goldGrams   = ""
+    }
 
-        goldGrams = ExpressionFormatter.format(gold, maxDecimalPlaces: 2)
-        silverGrams = ExpressionFormatter.format(silver, maxDecimalPlaces: 2)
+    private func convertFromSilver() {
+        let cleaned = inputAmount.withoutGroupingSeparators
+        guard !cleaned.isEmpty, let grams = Decimal(string: cleaned), grams > 0 else {
+            moneyResult = ""; goldGrams = ""; return
+        }
+        let money = grams * metalPrice.silverPerGram
+        moneyResult = ExpressionFormatter.format(money, maxDecimalPlaces: 2)
+        goldGrams   = ExpressionFormatter.format(money / metalPrice.goldPerGram,  maxDecimalPlaces: 2)
+        silverGrams = ""
     }
 
     private func convertSalary() {
         let cleaned = inputAmount.withoutGroupingSeparators
         guard !cleaned.isEmpty, let value = Decimal(string: cleaned) else {
-            matchedRank = nil
-            return
+            matchedRank = nil; return
         }
         matchedRank = AncientRank.find(monthlySalary: value)
     }
 
+    // MARK: - Active side management
+
+    func setActive(_ field: PreciousMetalsInputField) {
+        guard activeInput != field else { return }
+        activeInput = field
+        inputAmount = ""
+        goldGrams   = ""
+        silverGrams = ""
+        moneyResult = ""
+    }
+
+    // MARK: - Clipboard fill
+
     func updateFromLastResult(_ lastResult: Decimal?) {
         guard let value = lastResult else { return }
+        activeInput = .money
         inputAmount = ExpressionFormatter.format(value)
         convert()
     }
