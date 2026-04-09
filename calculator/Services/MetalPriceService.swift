@@ -54,19 +54,32 @@ actor MetalPriceServiceImpl: MetalPriceServiceProtocol {
         async let goldOz = fetchStooqClose(symbol: "xaucny")
         async let silverOz = fetchStooqClose(symbol: "xagcny")
 
-        let (goldCNYPerOz, silverCNYPerOz) = try await (goldOz, silverOz)
+        let (gold, silver) = try await (goldOz, silverOz)
+
+        // Only mark as live if Stooq returned today's data (Shanghai timezone).
+        // Before market open, Stooq still returns yesterday's close — isLive stays false.
+        let today = stooqToday()
+        let isLive = gold.date == today
 
         let gramsPerOz = Constants.PreciousMetals.gramsPerTroyOunce
         return MetalPrice(
-            goldPerGram:   (Decimal(goldCNYPerOz)   / gramsPerOz).rounded(to: 2),
-            silverPerGram: (Decimal(silverCNYPerOz) / gramsPerOz).rounded(to: 4),
+            goldPerGram:   (Decimal(gold.close)   / gramsPerOz).rounded(to: 2),
+            silverPerGram: (Decimal(silver.close) / gramsPerOz).rounded(to: 4),
             lastUpdated: Date(),
-            isLive: true
+            isLive: isLive
         )
     }
 
+    /// Today's date string in Asia/Shanghai, matching Stooq's date field format (yyyy-MM-dd).
+    private func stooqToday() -> String {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = TimeZone(identifier: "Asia/Shanghai")
+        return f.string(from: Date())
+    }
+
     /// Stooq response has a broken "volume": field with no value — strip it before decoding.
-    private func fetchStooqClose(symbol: String) async throws -> Double {
+    private func fetchStooqClose(symbol: String) async throws -> (close: Double, date: String) {
         guard let url = URL(string: Constants.PreciousMetals.stooqBaseURL + symbol) else {
             throw URLError(.badURL)
         }
@@ -93,10 +106,10 @@ actor MetalPriceServiceImpl: MetalPriceServiceProtocol {
         }
 
         let decoded = try JSONDecoder().decode(StooqResponse.self, from: fixedData)
-        guard let close = decoded.symbols.first?.close, close > 0 else {
+        guard let sym = decoded.symbols.first, let close = sym.close, close > 0 else {
             throw URLError(.cannotParseResponse)
         }
-        return close
+        return (close, sym.date)
     }
 
     // MARK: - fawazahmed0 (fallback, daily)

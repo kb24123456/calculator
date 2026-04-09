@@ -48,7 +48,11 @@ struct GoldPriceProvider: AppIntentTimelineProvider {
             if let symbol = response.symbols.first, let close = symbol.close {
                 let gramsPerOz = 31.1035
                 let pricePerGram = close / gramsPerOz
-                return (pricePerGram, true)
+                let f = DateFormatter()
+                f.dateFormat = "yyyy-MM-dd"
+                f.timeZone = TimeZone(identifier: "Asia/Shanghai")
+                let isLive = symbol.date == f.string(from: Date())
+                return (pricePerGram, isLive)
             }
         } catch {}
 
@@ -63,6 +67,7 @@ private struct StooqResponse: Decodable {
 
 private struct StooqSymbol: Decodable {
     let close: Double?
+    let date: String?
 }
 
 struct GoldPriceEntry: TimelineEntry {
