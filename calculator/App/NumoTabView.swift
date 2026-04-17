@@ -1077,6 +1077,22 @@ struct NumoTabView: View {
 
     // MARK: - Clipboard Detection
 
+    /// 从任意剪贴板字符串中提取一个合法的十进制数字字符串。
+    /// 规则：
+    /// - 去除常见货币符号、千位分隔符（英文/中文逗号）、空白；
+    /// - 中文句号 "。" 视作小数点；
+    /// - 必须能被 `Decimal(string:)` 解析；
+    /// - 长度 > 15 视为非法（与既有 `detectClipboardNumber` 保持一致）。
+    static func parseClipboardNumber(_ raw: String) -> String? {
+        let replacedDecimal = raw.replacingOccurrences(of: "。", with: ".")
+        let cleaned = replacedDecimal
+            .replacingOccurrences(of: "[¥$€£₩,，\\s]", with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespaces)
+        guard !cleaned.isEmpty, cleaned.count <= 15 else { return nil }
+        guard Decimal(string: cleaned) != nil else { return nil }
+        return cleaned
+    }
+
     private func clipboardBannerView(number: String) -> some View {
         Button {
             applyClipboardNumber(number)
@@ -1115,21 +1131,11 @@ struct NumoTabView: View {
 
     private func detectClipboardNumber() {
         guard settings.clipboardDetection else { return }
-        guard let text = UIPasteboard.general.string else {
+        guard let text = UIPasteboard.general.string,
+              let cleaned = Self.parseClipboardNumber(text) else {
             withAnimation { showClipboardBanner = false }
             return
         }
-        // Extract a number from the clipboard (remove currency symbols, spaces, commas)
-        let cleaned = text
-            .replacingOccurrences(of: "[¥$€£₩,，\\s]", with: "", options: .regularExpression)
-            .trimmingCharacters(in: .whitespaces)
-        // Validate: must be a valid decimal number
-        guard let _ = Decimal(string: cleaned), !cleaned.isEmpty,
-              cleaned.count <= 15 else {
-            withAnimation { showClipboardBanner = false }
-            return
-        }
-        // Don't show if it's the same as current input
         clipboardNumber = cleaned
         withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
             showClipboardBanner = true
