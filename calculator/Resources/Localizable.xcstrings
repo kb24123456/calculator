@@ -70,6 +70,9 @@
     "= %@" : {
 
     },
+    "|" : {
+
+    },
     "2" : {
 
     },
@@ -933,7 +936,34 @@
       }
     },
     "结果已复制" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Result copied"
+          }
+        }
+      }
+    },
+    "已粘贴" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pasted"
+          }
+        }
+      }
+    },
+    "剪贴板无数字" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clipboard has no number"
+          }
+        }
+      }
     },
     "继续" : {
 
