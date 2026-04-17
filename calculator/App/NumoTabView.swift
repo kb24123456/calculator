@@ -41,6 +41,29 @@ struct NumoTabView: View {
     @State private var isKeypadCollapsed = false
     @State private var copyScale: CGFloat = 1.0
     @State private var isToastVisible = false
+    @State private var toastKind: ToastKind = .copied
+
+    enum ToastKind {
+        case copied
+        case pasted
+        case pasteFailed
+
+        var icon: String {
+            switch self {
+            case .copied:      return "checkmark"
+            case .pasted:      return "doc.on.clipboard.fill"
+            case .pasteFailed: return "exclamationmark.triangle.fill"
+            }
+        }
+
+        var text: String {
+            switch self {
+            case .copied:      return String(localized: "结果已复制")
+            case .pasted:      return String(localized: "已粘贴")
+            case .pasteFailed: return String(localized: "剪贴板无数字")
+            }
+        }
+    }
     @State private var isUnitPickerExpanded = false
     @State private var isDateModeExpanded   = false
     @State private var isMetalsModeExpanded = false
@@ -65,7 +88,7 @@ struct NumoTabView: View {
                     .padding(.horizontal, NumoSpacing.md)
                     .scaleEffect(copyScale)
                     .onLongPressGesture(minimumDuration: 0.4) {
-                        copyCurrentResult()
+                        smartLongPress()
                     }
 
                 // MARK: - Clipboard Banner
@@ -208,32 +231,34 @@ struct NumoTabView: View {
             hudContent
                 .opacity(isToastVisible ? 0 : 1)
 
-            // 顶层：复制 Toast + 分享按钮（无隐式 animation 修饰符）
+            // 顶层：复制/粘贴/失败 Toast + 分享按钮（无隐式 animation 修饰符）
             HStack(spacing: 0) {
                 HStack(spacing: NumoSpacing.xs) {
-                    Image(systemName: "checkmark")
+                    Image(systemName: toastKind.icon)
                         .font(.system(size: 13, weight: .bold))
-                    Text(String(localized: "结果已复制"))
+                    Text(toastKind.text)
                         .font(.system(size: 15, weight: .medium, design: .rounded))
                 }
                 .foregroundStyle(.primary)
 
-                // Divider
-                Rectangle()
-                    .fill(.primary.opacity(0.15))
-                    .frame(width: 1, height: 16)
-                    .padding(.horizontal, NumoSpacing.sm)
+                if toastKind == .copied {
+                    // Divider
+                    Rectangle()
+                        .fill(.primary.opacity(0.15))
+                        .frame(width: 1, height: 16)
+                        .padding(.horizontal, NumoSpacing.sm)
 
-                // Share button
-                Button {
-                    shareCurrentResult()
-                } label: {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.primary)
+                    // Share button
+                    Button {
+                        shareCurrentResult()
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.primary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(String(localized: "分享结果"))
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(String(localized: "分享结果"))
             }
             .padding(.horizontal, NumoSpacing.lg)
             .padding(.vertical, NumoSpacing.sm)
@@ -986,6 +1011,7 @@ struct NumoTabView: View {
         }
 
         // Toast 显示/隐藏：用显式 withAnimation 驱动，不污染全局动画上下文
+        toastKind = .copied
         withAnimation(.spring(response: 0.36, dampingFraction: 0.68)) {
             isToastVisible = true
         }
@@ -993,6 +1019,61 @@ struct NumoTabView: View {
             withAnimation(.spring(response: 0.24, dampingFraction: 0.86)) {
                 isToastVisible = false
             }
+        }
+    }
+
+    /// 长按空输入框：把剪贴板中的数字粘贴到当前工具的活动输入字段。
+    /// - 日期差值模式（无文本输入）直接回退到"复制结果"。
+    /// - 剪贴板无合法数字时，震动 + "剪贴板无数字" Toast 提示。
+    private func pasteIntoActiveInput() {
+        // 日期差值模式没有文本输入字段，视作复制场景
+        if appState.selectedTool == .date, dateVM.mode == .difference {
+            copyCurrentResult()
+            return
+        }
+
+        guard let raw = UIPasteboard.general.string,
+              let cleaned = Self.parseClipboardNumber(raw) else {
+            // 粘贴失败：震动 + 提示
+            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            toastKind = .pasteFailed
+            withAnimation(.spring(response: 0.36, dampingFraction: 0.68)) {
+                isToastVisible = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+                withAnimation(.spring(response: 0.24, dampingFraction: 0.86)) {
+                    isToastVisible = false
+                }
+            }
+            return
+        }
+
+        // 成功：复用既有字段写入逻辑
+        applyClipboardNumber(cleaned)
+
+        // 反馈：震动 + 缩放 + Toast
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        withAnimation(.spring(response: 0.18, dampingFraction: 0.85)) { copyScale = 0.96 }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.14) {
+            withAnimation(.spring(response: 0.48, dampingFraction: 0.52)) { copyScale = 1.0 }
+        }
+        toastKind = .pasted
+        withAnimation(.spring(response: 0.36, dampingFraction: 0.68)) {
+            isToastVisible = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            withAnimation(.spring(response: 0.24, dampingFraction: 0.86)) {
+                isToastVisible = false
+            }
+        }
+    }
+
+    /// 长按显示区：空 → 粘贴；非空 → 复制。
+    private func smartLongPress() {
+        if isActiveInputEmpty {
+            pasteIntoActiveInput()
+        } else {
+            copyCurrentResult()
         }
     }
 
