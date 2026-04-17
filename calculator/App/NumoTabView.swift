@@ -930,6 +930,49 @@ struct NumoTabView: View {
         }
     }
 
+    // MARK: - Paste / Copy smart dispatch
+
+    /// 当前工具的活动输入字段是否为空。
+    /// 决定长按时是"粘贴"（空）还是"复制结果"（非空）。
+    private var isActiveInputEmpty: Bool {
+        switch appState.selectedTool {
+        case .calculator:
+            return calculatorVM.expressionString.isEmpty
+        case .currency:
+            switch currencyVM.activeInput {
+            case .source: return currencyVM.sourceAmount.isEmpty
+            case .target: return currencyVM.targetAmount.isEmpty
+            }
+        case .uppercase:
+            return uppercaseVM.inputAmount.isEmpty
+        case .yoy:
+            switch activeField {
+            case .primary:   return yoyVM.currentValueText.isEmpty
+            case .secondary: return yoyVM.yoyPreviousText.isEmpty
+            case .tertiary:  return yoyVM.momPreviousText.isEmpty
+            }
+        case .date:
+            switch dateVM.mode {
+            case .difference: return true   // 无文本输入字段；粘贴路径会回退到复制
+            case .offset:     return dateVM.offsetDays.isEmpty
+            case .workday:    return dateVM.workdayCount.isEmpty
+            }
+        case .unit:
+            switch unitVM.activeInput {
+            case .source: return unitVM.sourceValue.isEmpty
+            case .target: return unitVM.targetValue.isEmpty
+            }
+        case .loan:
+            switch activeField {
+            case .primary:   return loanVM.amountText.isEmpty
+            case .secondary: return loanVM.annualRateText.isEmpty
+            case .tertiary:  return false   // 年限有默认值 "30"，不视为空
+            }
+        case .preciousMetals:
+            return preciousMetalsVM.inputAmount.isEmpty
+        }
+    }
+
     private func copyCurrentResult() {
         guard let text = currentCopyableResult else { return }
         UIPasteboard.general.string = text
